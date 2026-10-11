@@ -1,0 +1,697 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableSessionStatus {
+  OPEN
+  CHECK_REQUESTED
+  PAYMENT_IN_PROGRESS
+  CLOSED
+  CANCELLED
+}
+
+enum OrderStatus {
+  OPEN
+  SUBMITTED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  NEW
+  ACKNOWLEDGED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum BillStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  VOIDED
+  REFUNDED
+}
+
+enum DiscountKind {
+  FIXED
+  PERCENT
+}
+
+enum RefundStatus {
+  SUCCEEDED
+  VOIDED
+}
+
+enum CashShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum PrintJobStatus {
+  QUEUED
+  CLAIMED
+  PRINTED
+  FAILED
+}
+
+enum PrintDocumentType {
+  ORDER_TICKET
+  RECEIPT
+  TEST
+}
+
+enum ServiceRequestType {
+  STAFF_CALL
+  CHECK_BILL
+}
+
+enum ServiceRequestStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  CANCELLED
+}
+
+model Organization {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  branches    Branch[]
+  users       User[]
+  roles       Role[]
+  categories  MenuCategory[]
+  menuItems   MenuItem[]
+  auditLogs   AuditLog[]
+  ingredients Ingredient[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Branch {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  name              String
+  code              String
+  timezone          String                 @default("Asia/Bangkok")
+  currency          String                 @default("THB")
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tables            RestaurantTable[]
+  tableSessions     TableSession[]
+  orders            Order[]
+  bills             Bill[]
+  stations          ProductionStation[]
+  printers          Printer[]
+  printAgents       PrintAgent[]
+  printRoutes       PrintRoutingRule[]
+  printJobs         PrintJob[]
+  serviceRequests   ServiceRequest[]
+  roleAssignments   RoleAssignment[]
+  auditLogs         AuditLog[]
+  inventoryBalances InventoryBalance[]
+  stockMovements    StockMovement[]
+  cashShifts        CashShift[]
+  paymentMethods    PaymentMethodSetting[]
+  refunds           Refund[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([organizationId, code])
+}
+
+model User {
+  id                String           @id @default(cuid())
+  organizationId    String
+  email             String
+  displayName       String
+  pinHash           String?
+  isActive          Boolean          @default(true)
+  mustChangePin     Boolean          @default(false)
+  failedPinAttempts Int              @default(0)
+  pinLockedUntil    DateTime?
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleAssignments   RoleAssignment[]
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  cashShifts        CashShift[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([organizationId, email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  organizationId  String
+  name            String
+  permissions     Json
+  description     String?
+  isSystem        Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleAssignments RoleAssignment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([organizationId, name])
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  branchId  String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId, branchId])
+}
+
+model RestaurantTable {
+  id              String           @id @default(cuid())
+  branchId        String
+  code            String
+  name            String
+  capacity        Int              @default(2)
+  qrSecret        String           @unique
+  isActive        Boolean          @default(true)
+  branch          Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sessions        TableSession[]
+  serviceRequests ServiceRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([branchId, code])
+}
+
+model TableSession {
+  id              String             @id @default(cuid())
+  branchId        String
+  tableId         String
+  status          TableSessionStatus @default(OPEN)
+  guestCount      Int                @default(1)
+  openedAt        DateTime           @default(now())
+  closedAt        DateTime?
+  accessNonce     String             @unique
+  branch          Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table           RestaurantTable    @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  orders          Order[]
+  bills           Bill[]
+  serviceRequests ServiceRequest[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([branchId, status])
+  @@index([tableId, status])
+}
+
+model ServiceRequest {
+  id             String               @id @default(cuid())
+  branchId       String
+  tableId        String
+  tableSessionId String?
+  type           ServiceRequestType
+  status         ServiceRequestStatus @default(OPEN)
+  note           String?
+  branch         Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table          RestaurantTable      @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableSession   TableSession?        @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([branchId, status, createdAt])
+  @@index([tableId, status])
+}
+
+model MenuCategory {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  sortOrder      Int          @default(0)
+  isActive       Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  menuItems      MenuItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name])
+}
+
+model MenuItem {
+  id             String            @id @default(cuid())
+  organizationId String
+  categoryId     String
+  sku            String?
+  name           String
+  description    String?
+  priceSatang    Int
+  imageUrl       String?
+  isActive       Boolean           @default(true)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       MenuCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems     OrderItem[]
+  stationRoutes  MenuItemStation[]
+  recipeItems    RecipeItem[]
+  recipeVersion  Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, categoryId, isActive])
+}
+
+model ProductionStation {
+  id          String             @id @default(cuid())
+  branchId    String
+  name        String
+  kind        String
+  isActive    Boolean            @default(true)
+  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  menuRoutes  MenuItemStation[]
+  printRoutes PrintRoutingRule[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([branchId, name])
+}
+
+model MenuItemStation {
+  id         String            @id @default(cuid())
+  menuItemId String
+  stationId  String
+  menuItem   MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  station    ProductionStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, stationId])
+}
+
+model Order {
+  id             String          @id @default(cuid())
+  branchId       String
+  tableSessionId String
+  orderNumber    Int
+  status         OrderStatus     @default(OPEN)
+  source         String          @default("QR")
+  idempotencyKey String          @unique
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableSession   TableSession    @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([branchId, orderNumber])
+  @@index([branchId, tableSessionId, status])
+}
+
+enum IngredientUnit {
+  GRAM
+  MILLILITER
+  PIECE
+}
+
+enum StockMovementType {
+  RECEIPT
+  WASTE
+  COUNT
+  SALE
+  REVERSAL
+}
+
+model Ingredient {
+  id              String                @id @default(cuid())
+  organizationId  String
+  name            String
+  unit            IngredientUnit
+  isActive        Boolean               @default(true)
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipeItems     RecipeItem[]
+  balances        InventoryBalance[]
+  movements       StockMovement[]
+  orderItemUsages OrderItemIngredient[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([organizationId, name])
+}
+
+model RecipeItem {
+  id           String     @id @default(cuid())
+  menuItemId   String
+  ingredientId String
+  quantity     Decimal    @db.Decimal(18, 3)
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([menuItemId, ingredientId])
+}
+
+model InventoryBalance {
+  id                String     @id @default(cuid())
+  branchId          String
+  ingredientId      String
+  quantity          Decimal    @default(0) @db.Decimal(18, 3)
+  averageCostSatang Decimal?   @db.Decimal(18, 6)
+  lowStockThreshold Decimal    @default(0) @db.Decimal(18, 3)
+  branch            Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredient        Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([branchId, ingredientId])
+}
+
+model StockMovement {
+  id                String            @id @default(cuid())
+  branchId          String
+  ingredientId      String
+  orderId           String?
+  type              StockMovementType
+  quantity          Decimal           @db.Decimal(18, 3)
+  balanceAfter      Decimal           @db.Decimal(18, 3)
+  unitCostSatang    Decimal?          @db.Decimal(18, 6)
+  receiptCostSatang Int?
+  requestHash       String?
+  reason            String
+  actorName         String?
+  idempotencyKey    String            @unique
+  branch            Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredient        Ingredient        @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  order             Order?            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  createdAt         DateTime          @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([orderId, ingredientId])
+  @@index([branchId, ingredientId, createdAt])
+}
+
+model OrderItem {
+  id                 String                @id @default(cuid())
+  orderId            String
+  menuItemId         String
+  nameSnapshot       String
+  priceSatang        Int
+  quantity           Int
+  note               String?
+  status             OrderItemStatus       @default(NEW)
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancellationReason String?
+  stockRestored      Boolean               @default(false)
+  order              Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem           MenuItem              @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  billLines          BillLine[]
+  ingredientUsages   OrderItemIngredient[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model OrderItemIngredient {
+  id               String     @id @default(cuid())
+  orderItemId      String
+  ingredientId     String
+  quantity         Decimal    @db.Decimal(18, 3)
+  unitCostSatang   Decimal?   @db.Decimal(18, 6)
+  restoredQuantity Decimal    @default(0) @db.Decimal(18, 3)
+  orderItem        OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  createdAt        DateTime   @default(now())
+
+  @@unique([orderItemId, ingredientId])
+  @@index([ingredientId])
+}
+
+model Bill {
+  id             String         @id @default(cuid())
+  branchId       String
+  tableSessionId String
+  billNumber     Int
+  status         BillStatus     @default(OPEN)
+  subtotalSatang Int            @default(0)
+  discountSatang Int            @default(0)
+  taxSatang      Int            @default(0)
+  totalSatang    Int            @default(0)
+  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableSession   TableSession   @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
+  payments       Payment[]
+  lines          BillLine[]
+  discounts      BillDiscount[]
+  refunds        Refund[]
+  voidedAt       DateTime?
+  voidReason     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([branchId, billNumber])
+  @@index([branchId, tableSessionId, status])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  billId         String
+  method         String
+  status         PaymentStatus @default(PENDING)
+  amountSatang   Int
+  reference      String?
+  idempotencyKey String        @unique
+  cashShiftId    String?
+  bill           Bill          @relation(fields: [billId], references: [id], onDelete: Restrict)
+  cashShift      CashShift?    @relation(fields: [cashShiftId], references: [id], onDelete: SetNull)
+  refunds        Refund[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([billId, status])
+  @@index([cashShiftId, status])
+}
+
+model BillLine {
+  id              String         @id @default(cuid())
+  billId          String
+  orderItemId     String
+  quantity        Int
+  nameSnapshot    String
+  unitPriceSatang Int
+  subtotalSatang  Int
+  bill            Bill           @relation(fields: [billId], references: [id], onDelete: Cascade)
+  orderItem       OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  discounts       BillDiscount[]
+  createdAt       DateTime       @default(now())
+
+  @@index([billId])
+  @@index([orderItemId])
+}
+
+model BillDiscount {
+  id           String       @id @default(cuid())
+  billId       String
+  billLineId   String?
+  kind         DiscountKind
+  value        Int
+  amountSatang Int
+  reason       String
+  actorId      String
+  bill         Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
+  billLine     BillLine?    @relation(fields: [billLineId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+
+  @@index([billId, createdAt])
+}
+
+model Refund {
+  id             String       @id @default(cuid())
+  branchId       String
+  billId         String
+  paymentId      String
+  cashShiftId    String?
+  amountSatang   Int
+  reason         String
+  actorId        String
+  status         RefundStatus @default(SUCCEEDED)
+  idempotencyKey String       @unique
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  bill           Bill         @relation(fields: [billId], references: [id], onDelete: Restrict)
+  payment        Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  cashShift      CashShift?   @relation(fields: [cashShiftId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([billId, status])
+  @@index([paymentId, status])
+  @@index([cashShiftId, status])
+}
+
+model CashShift {
+  id                 String          @id @default(cuid())
+  branchId           String
+  userId             String
+  status             CashShiftStatus @default(OPEN)
+  openingCashSatang  Int
+  expectedCashSatang Int?
+  closingCashSatang  Int?
+  differenceSatang   Int?
+  note               String?
+  openedAt           DateTime        @default(now())
+  closedAt           DateTime?
+  branch             Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payments           Payment[]
+  refunds            Refund[]
+
+  @@index([branchId, status, openedAt])
+  @@index([userId, status])
+}
+
+model PaymentMethodSetting {
+  id        String   @id @default(cuid())
+  branchId  String
+  code      String
+  name      String
+  isCash    Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, code])
+  @@index([branchId, isActive, sortOrder])
+}
+
+model PrintAgent {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  tokenHash  String    @unique
+  isActive   Boolean   @default(true)
+  lastSeenAt DateTime?
+  lastError  String?
+  version    String?
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  printers   Printer[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([branchId, name])
+  @@index([branchId, isActive])
+}
+
+model Printer {
+  id           String             @id @default(cuid())
+  branchId     String
+  printAgentId String?
+  name         String
+  connection   String
+  endpoint     String?
+  paperWidth   Int                @default(80)
+  codePage     String             @default("UTF-8")
+  isActive     Boolean            @default(true)
+  branch       Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  printAgent   PrintAgent?        @relation(fields: [printAgentId], references: [id], onDelete: SetNull)
+  printJobs    PrintJob[]
+  printRoutes  PrintRoutingRule[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([branchId, name])
+  @@index([branchId, isActive])
+}
+
+model PrintJob {
+  id             String            @id @default(cuid())
+  branchId       String
+  printerId      String
+  documentType   PrintDocumentType
+  idempotencyKey String            @unique
+  status         PrintJobStatus    @default(QUEUED)
+  document       Json
+  attempts       Int               @default(0)
+  claimedAt      DateTime?
+  claimExpiresAt DateTime?
+  completedAt    DateTime?
+  printedAt      DateTime?
+  error          String?
+  branch         Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  printer        Printer           @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([printerId, status, createdAt])
+  @@index([branchId, status, createdAt])
+}
+
+model PrintRoutingRule {
+  id           String             @id @default(cuid())
+  branchId     String
+  printerId    String
+  stationId    String?
+  documentType PrintDocumentType
+  copies       Int                @default(1)
+  isActive     Boolean            @default(true)
+  branch       Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  printer      Printer            @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  station      ProductionStation? @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([printerId, stationId, documentType])
+  @@index([branchId, documentType, isActive])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  branchId       String?
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  before         Json?
+  after          Json?
+  reason         String?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, entityType, entityId, createdAt])
+}
+
+model RateLimitBucket {
+  keyHash         String    @id
+  action          String
+  windowStartedAt DateTime
+  count           Int       @default(1)
+  blockedUntil    DateTime?
+  updatedAt       DateTime  @updatedAt
+  expiresAt       DateTime
+
+  @@index([action, updatedAt])
+  @@index([expiresAt])
+}

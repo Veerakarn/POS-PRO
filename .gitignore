@@ -1,0 +1,17 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next
+/out
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# generated and local tooling
+/prisma/generated
+*.tsbuildinfo
+npm-debug.log*
