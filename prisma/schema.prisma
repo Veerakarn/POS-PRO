@@ -88,18 +88,23 @@ enum ServiceRequestStatus {
 }
 
 model Organization {
-  id          String         @id @default(cuid())
-  name        String
-  slug        String         @unique
-  branches    Branch[]
-  users       User[]
-  roles       Role[]
-  categories  MenuCategory[]
-  menuItems   MenuItem[]
-  auditLogs   AuditLog[]
-  ingredients Ingredient[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  branches           Branch[]
+  users              User[]
+  roles              Role[]
+  categories         MenuCategory[]
+  menuItems          MenuItem[]
+  auditLogs          AuditLog[]
+  ingredients        Ingredient[]
+  promotions         PromoCode[]
+  members            CustomerMember[]
+  membershipSettings MembershipSettings?
+  taxProfiles        TaxProfile[]
+  taxInvoices        TaxInvoice[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model Branch {
@@ -114,6 +119,7 @@ model Branch {
   tableSessions     TableSession[]
   orders            Order[]
   bills             Bill[]
+  taxProfile        TaxProfile?
   stations          ProductionStation[]
   printers          Printer[]
   printAgents       PrintAgent[]
@@ -273,6 +279,7 @@ model MenuItem {
   description    String?
   priceSatang    Int
   imageUrl       String?
+  uploadedImage  MenuImage?
   isActive       Boolean           @default(true)
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category       MenuCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -285,6 +292,14 @@ model MenuItem {
 
   @@unique([organizationId, sku])
   @@index([organizationId, categoryId, isActive])
+}
+
+model MenuImage {
+  id         String   @id
+  menuItemId String   @unique
+  content    Bytes
+  createdAt  DateTime @default(now())
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 }
 
 model ProductionStation {
@@ -448,25 +463,32 @@ model OrderItemIngredient {
 }
 
 model Bill {
-  id             String         @id @default(cuid())
-  branchId       String
-  tableSessionId String
-  billNumber     Int
-  status         BillStatus     @default(OPEN)
-  subtotalSatang Int            @default(0)
-  discountSatang Int            @default(0)
-  taxSatang      Int            @default(0)
-  totalSatang    Int            @default(0)
-  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  tableSession   TableSession   @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
-  payments       Payment[]
-  lines          BillLine[]
-  discounts      BillDiscount[]
-  refunds        Refund[]
-  voidedAt       DateTime?
-  voidReason     String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                  String               @id @default(cuid())
+  branchId            String
+  tableSessionId      String
+  billNumber          Int
+  status              BillStatus           @default(OPEN)
+  subtotalSatang      Int                  @default(0)
+  discountSatang      Int                  @default(0)
+  taxSatang           Int                  @default(0)
+  totalSatang         Int                  @default(0)
+  branch              Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableSession        TableSession         @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
+  payments            Payment[]
+  lines               BillLine[]
+  discounts           BillDiscount[]
+  refunds             Refund[]
+  voidedAt            DateTime?
+  voidReason          String?
+  memberId            String?
+  member              CustomerMember?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  taxRateBps          Int                  @default(0)
+  taxIncluded         Boolean              @default(true)
+  taxInvoices         TaxInvoice[]
+  promotionRedemption PromotionRedemption?
+  loyaltyEntries      LoyaltyEntry[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([branchId, billNumber])
   @@index([branchId, tableSessionId, status])
@@ -517,11 +539,134 @@ model BillDiscount {
   amountSatang Int
   reason       String
   actorId      String
+  promoCodeId  String?
+  promoCode    PromoCode?   @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   bill         Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
   billLine     BillLine?    @relation(fields: [billLineId], references: [id], onDelete: Cascade)
   createdAt    DateTime     @default(now())
 
   @@index([billId, createdAt])
+}
+
+model PromoCode {
+  id                    String                @id @default(cuid())
+  organizationId        String
+  code                  String
+  name                  String
+  kind                  DiscountKind
+  value                 Int
+  minimumSatang         Int                   @default(0)
+  maximumDiscountSatang Int?
+  usageLimit            Int?
+  startsAt              DateTime?
+  endsAt                DateTime?
+  isActive              Boolean               @default(true)
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  redemptions           PromotionRedemption[]
+  discounts             BillDiscount[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive, startsAt, endsAt])
+}
+
+model PromotionRedemption {
+  id           String    @id @default(cuid())
+  promoCodeId  String
+  billId       String    @unique
+  codeSnapshot String
+  amountSatang Int
+  promoCode    PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+  bill         Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+
+  @@index([promoCodeId, createdAt])
+}
+
+model CustomerMember {
+  id             String         @id @default(cuid())
+  organizationId String
+  phone          String
+  name           String
+  email          String?
+  isActive       Boolean        @default(true)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bills          Bill[]
+  loyaltyEntries LoyaltyEntry[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([organizationId, phone])
+  @@index([organizationId, name])
+}
+
+model MembershipSettings {
+  id                     String       @id @default(cuid())
+  organizationId         String       @unique
+  pointsPerHundredBaht   Int          @default(1)
+  pointsPerHundredSatang Int          @default(10000)
+  redemptionCapPercent   Int          @default(50)
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedAt              DateTime     @updatedAt
+}
+
+model LoyaltyEntry {
+  id        String         @id @default(cuid())
+  memberId  String
+  billId    String?
+  entryKey  String
+  kind      String
+  points    Int
+  note      String
+  member    CustomerMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  bill      Bill?          @relation(fields: [billId], references: [id], onDelete: SetNull)
+  createdAt DateTime       @default(now())
+
+  @@unique([memberId, entryKey])
+  @@index([memberId, createdAt])
+}
+
+model TaxProfile {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  branchId           String       @unique
+  legalName          String
+  taxpayerId         String
+  address            String
+  branchNumber       String       @default("00000")
+  isVatRegistered    Boolean      @default(false)
+  vatRateBps         Int          @default(700)
+  taxIncluded        Boolean      @default(true)
+  documentPrefix     String       @default("TAX")
+  nextDocumentNumber Int          @default(1)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch             Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoices           TaxInvoice[]
+  updatedAt          DateTime     @updatedAt
+}
+
+model TaxInvoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  taxProfileId   String
+  billId         String       @unique
+  invoiceNumber  String
+  sellerSnapshot Json
+  buyerSnapshot  Json
+  itemsSnapshot  Json
+  subtotalSatang Int
+  discountSatang Int
+  taxableSatang  Int
+  taxSatang      Int
+  totalSatang    Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  taxProfile     TaxProfile   @relation(fields: [taxProfileId], references: [id], onDelete: Restrict)
+  bill           Bill         @relation(fields: [billId], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, createdAt])
 }
 
 model Refund {

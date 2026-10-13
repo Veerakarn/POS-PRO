@@ -2,15 +2,20 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { issueTaxInvoice } from "@/app/settings/commerce/actions";
 
 import {
   applyCounterDiscount,
+  applyCounterPromoCode,
   cancelCounterOrderItem,
   createSplitCounterBill,
   mergeCounterTable,
   moveCounterTable,
   receiveCounterPayment,
   requestCounterBill,
+  linkCounterMember,
+  redeemCounterMemberPoints,
   voidCounterBill,
   type CounterActionResult,
 } from "@/app/pos/actions";
@@ -246,6 +251,9 @@ function BillCard({
   const [discountKind, setDiscountKind] = useState<"FIXED" | "PERCENT">("FIXED");
   const [discountValue, setDiscountValue] = useState("");
   const [discountReason, setDiscountReason] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [memberPhone, setMemberPhone] = useState("");
+  const [memberName, setMemberName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState(() => paymentMethods.find((method) => hasOpenCashShift || !method.isCash)?.code ?? paymentMethods[0]?.code ?? "");
   const [paymentAmount, setPaymentAmount] = useState(() => (Math.max(0, bill.totalSatang - bill.paidSatang) / 100).toFixed(2));
   const [paymentKey, setPaymentKey] = useState(createIdempotencyKey);
@@ -299,6 +307,14 @@ function BillCard({
       </div>
       {bill.discounts.length ? <div className="bill-discount-history">{bill.discounts.map((discount) => <small key={discount.id}>ส่วนลด {money(discount.amountSatang)} · {discount.reason}</small>)}</div> : null}
 
+      {bill.member ? <div className="bill-member-info"><strong>สมาชิก · {bill.member.name}</strong><span>{bill.member.phone} · {bill.member.points} แต้ม</span></div> : null}
+      {canManagePayments && remaining > 0 ? <div className="bill-control-grid">
+        <div className="bill-action-form"><label><span>รหัสโปรโมชั่น</span><input maxLength={24} onChange={(event) => setPromoCode(event.target.value.toUpperCase())} placeholder="เช่น LUNCH10" value={promoCode} /></label><button className="secondary-button" disabled={isPending || promoCode.trim().length < 3} onClick={() => run(() => applyCounterPromoCode({ branchId, billId: bill.id, code: promoCode }), () => setPromoCode("") )} type="button">ใช้รหัส</button></div>
+        {!bill.member ? <div className="bill-action-form"><label><span>เบอร์สมาชิก</span><input autoComplete="tel" inputMode="tel" onChange={(event) => setMemberPhone(event.target.value)} placeholder="08xxxxxxxx" value={memberPhone} /></label><label><span>ชื่อ</span><input maxLength={100} onChange={(event) => setMemberName(event.target.value)} value={memberName} /></label><button className="secondary-button" disabled={isPending || memberName.trim().length < 2 || memberPhone.trim().length < 9} onClick={() => run(() => linkCounterMember({ branchId, billId: bill.id, phone: memberPhone, name: memberName }), () => { setMemberPhone(""); setMemberName(""); })} type="button">สมัคร/ผูกสมาชิก</button></div> : <button className="secondary-button" disabled={isPending} onClick={() => run(() => redeemCounterMemberPoints({ branchId, billId: bill.id }))} type="button">แลกแต้มเป็นส่วนลด</button>}
+      </div> : null}
+      {bill.taxInvoices.map((invoice) => <p className="tax-invoice-link" key={invoice.id}><Link href={`/tax-invoices/${invoice.id}`}>เปิดใบกำกับภาษี {invoice.invoiceNumber}</Link></p>)}
+      {canManagePayments && bill.status === "PAID" && bill.taxInvoices.length === 0 ? <TaxInvoiceIssueForm branchId={branchId} billId={bill.id} /> : null}
+
       {canManagePayments && remaining > 0 ? (
         <div className="bill-control-grid">
           <details className="bill-action-form">
@@ -326,6 +342,21 @@ function BillCard({
       ) : null}
     </article>
   );
+}
+
+function TaxInvoiceIssueForm({ branchId, billId }: { branchId: string; billId: string }) {
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [taxId, setTaxId] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  return <details className="bill-action-form tax-invoice-form"><summary>ออกใบกำกับภาษีเต็มรูป</summary>
+    <label><span>ชื่อผู้ซื้อ</span><input maxLength={200} onChange={(event) => setName(event.target.value)} value={name} /></label>
+    <label><span>ที่อยู่ผู้ซื้อ</span><textarea maxLength={500} onChange={(event) => setAddress(event.target.value)} rows={2} value={address} /></label>
+    <label><span>เลขผู้เสียภาษีผู้ซื้อ (ไม่บังคับ)</span><input inputMode="numeric" maxLength={13} onChange={(event) => setTaxId(event.target.value)} value={taxId} /></label>
+    {error ? <p className="form-error" role="alert">{error}</p> : null}
+    <button className="secondary-button" disabled={pending} type="button" onClick={() => startTransition(async () => { const data = new FormData(); data.set("branchId", branchId); data.set("billId", billId); data.set("buyerName", name); data.set("buyerAddress", address); data.set("buyerTaxId", taxId); const result = await issueTaxInvoice({}, data); if (result.error) setError(result.error); else window.location.reload(); })}>{pending ? "กำลังออกเอกสาร…" : "สร้างเอกสาร"}</button>
+  </details>;
 }
 
 function CancelItemControl({ branchId, tableId, itemId, itemName, disabled, run }: { branchId: string; tableId: string; itemId: string; itemName: string; disabled: boolean; run: (action: () => Promise<CounterActionResult>, onSuccess?: () => void) => void }) {

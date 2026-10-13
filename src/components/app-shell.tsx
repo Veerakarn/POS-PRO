@@ -17,10 +17,14 @@ const navigation = [
   { href: "/inventory", label: "วัตถุดิบ / ต้นทุน", permission: "inventory.manage" },
   { href: "/settings/tables", label: "โต๊ะและ QR", permission: "table.manage" },
   { href: "/settings/menu", label: "เมนู", permission: "menu.manage" },
+  { href: "/settings/promotions", label: "โปรโมชั่น", permission: "organization.manage" },
+  { href: "/settings/members", label: "สมาชิก / แต้ม", permission: "organization.manage" },
+  { href: "/settings/tax", label: "ภาษี / ใบกำกับ", permission: "payment.manage" },
   { href: "/settings/stations", label: "จุดผลิต", permission: "menu.manage" },
   { href: "/settings/printers", label: "เครื่องพิมพ์", permission: "printer.manage" },
   { href: "/settings/branches", label: "จัดการสาขา", permission: "branch.manage" },
   { href: "/settings/staff", label: "พนักงาน / สิทธิ์", permission: "user.manage" },
+  { href: "/settings/readiness", label: "ความพร้อมร้าน", permission: "organization.manage" },
 ];
 
 export async function AppShell({

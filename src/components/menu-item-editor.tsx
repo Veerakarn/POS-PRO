@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { MenuImageFields } from "@/components/menu-image-fields";
 
 import {
   archiveMenuItem,
@@ -57,7 +58,8 @@ export function MenuItemEditor({
       <label><span>หมวดหมู่</span><select defaultValue={item.categoryId} name="categoryId">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
       <div className="form-grid"><label><span>ชื่อเมนู</span><input defaultValue={item.name} name="name" required /></label><label><span>ราคา (บาท)</span><input defaultValue={(item.priceSatang / 100).toFixed(2)} inputMode="decimal" name="price" required /></label></div>
       <label><span>คำอธิบาย</span><input defaultValue={item.description ?? ""} name="description" /></label>
-      <div className="form-grid"><label><span>SKU</span><input defaultValue={item.sku ?? ""} name="sku" /></label><label><span>URL รูปภาพ</span><input defaultValue={item.imageUrl ?? ""} name="imageUrl" type="url" /></label></div>
+      <label><span>SKU</span><input defaultValue={item.sku ?? ""} name="sku" /></label>
+      <MenuImageFields currentUrl={item.imageUrl} editing disabled={isUpdating} />
       {updateState.error ? <p className="form-error" role="alert">{updateState.error}</p> : null}
       {updateState.success ? <p className="form-success" role="status">{updateState.success}</p> : null}
       <div className="menu-card-actions"><button className="primary-button compact" disabled={isUpdating} type="submit">{isUpdating ? "กำลังบันทึก…" : "บันทึก"}</button><button className="secondary-button compact" disabled={isUpdating} onClick={() => setIsEditing(false)} type="button">ยกเลิก</button></div>

@@ -42,6 +42,8 @@ export type CounterBill = {
   paidSatang: number;
   lines: Array<{ id: string; orderItemId: string; quantity: number; name: string; subtotalSatang: number }>;
   discounts: Array<{ id: string; billLineId: string | null; amountSatang: number; reason: string }>;
+  member: { id: string; name: string; phone: string; points: number } | null;
+  taxInvoices: Array<{ id: string; invoiceNumber: string }>;
 };
 
 export type CounterPaymentOption = { code: string; name: string; isCash: boolean };
@@ -218,6 +220,7 @@ export function CounterPosLiveClient({
         <div>
           <p className="eyebrow">หน้าร้าน · {branchName}</p>
           <h1>Counter POS</h1>
+          <span className="tablet-staff-label">โหมดพนักงาน · แท็บเล็ต</span>
         </div>
         <div className="pos-actions">
           {canManageServiceRequests ? <a className="secondary-button" href="/requests">▣ คำขอจากโต๊ะ <span>{pendingServiceRequests}</span></a> : null}

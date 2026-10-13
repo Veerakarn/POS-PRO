@@ -15,6 +15,12 @@ const publicHostname = getPublicHostname();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4mb",
+      ...(publicHostname ? { allowedOrigins: [publicHostname] } : {}),
+    },
+  },
   async headers() {
     return [{
       source: "/sw.js",
@@ -36,11 +42,6 @@ const nextConfig: NextConfig = {
   ...(publicHostname
     ? {
         allowedDevOrigins: [publicHostname],
-        experimental: {
-          serverActions: {
-            allowedOrigins: [publicHostname],
-          },
-        },
       }
     : {}),
 };

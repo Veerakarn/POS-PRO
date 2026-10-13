@@ -3,11 +3,12 @@
 ## Required Vercel environment variables
 
 - `DATABASE_URL`: pooled Neon connection string with `sslmode=require`
-- `QR_TOKEN_SECRET`: at least 32 random bytes; never reuse the database password
 - `INITIAL_SETUP_TOKEN`: required only while claiming the first owner account
 - `NEXT_PUBLIC_APP_URL`: the final HTTPS production origin, without a trailing slash
 
-Set each value separately for Production and Preview. Run `npm run db:deploy` against the production Neon database before promoting a build that contains a new migration.
+Set these values in Vercel for Production. `NEXT_PUBLIC_APP_URL` is the public HTTPS URL encoded into table QR codes; set it before deploying and redeploy after changing it. Set a separate URL for Preview if you intend to test QR orders there. Keep `INITIAL_SETUP_TOKEN` as a long random value, use it only for first-time setup/owner claim, then remove it from Vercel after the owner account is initialized.
+
+For every release that adds a Prisma migration, back up or create a Neon restore point, then run `npm run db:deploy` against the intended Neon database before sending traffic to that release. Never run `migrate dev` against production.
 
 ## Monitoring
 

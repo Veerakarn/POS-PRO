@@ -10,7 +10,25 @@ import { userHasPermission } from "@/lib/authorization";
 import { db } from "@/lib/db";
 
 function getPublicAppUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!configuredUrl) return process.env.NODE_ENV === "production" ? "" : "http://localhost:3000";
+
+  try {
+    const url = new URL(configuredUrl);
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      (process.env.NODE_ENV === "production" && (
+        url.protocol !== "https:" ||
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+      ))
+    ) return "";
+
+    return url.origin;
+  } catch {
+    return "";
+  }
 }
 
 export default async function TablesPage({
@@ -56,15 +74,17 @@ export default async function TablesPage({
   const publicAppUrl = getPublicAppUrl();
   const qrTables = await Promise.all(
     selectedBranch.tables.map(async (table) => {
-      const qrUrl = `${publicAppUrl}/q/${encodeURIComponent(organization.slug)}/${encodeURIComponent(selectedBranch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}`;
+      const qrUrl = publicAppUrl
+        ? `${publicAppUrl}/q/${encodeURIComponent(organization.slug)}/${encodeURIComponent(selectedBranch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}`
+        : null;
       return {
         ...table,
         qrUrl,
-        qrDataUrl: await QRCode.toDataURL(qrUrl, {
+        qrDataUrl: qrUrl ? await QRCode.toDataURL(qrUrl, {
           errorCorrectionLevel: "M",
           margin: 1,
           width: 220,
-        }),
+        }) : null,
       };
     }),
   );
@@ -93,8 +113,8 @@ export default async function TablesPage({
           </nav>
         ) : null}
 
-        {!process.env.NEXT_PUBLIC_APP_URL ? (
-          <p className="configuration-notice">ก่อนนำ QR ไปใช้กับโทรศัพท์ ให้ตั้งค่า <code>NEXT_PUBLIC_APP_URL</code> เป็นโดเมนจริงหรือ LAN URL ของเครื่องนี้ใน <code>.env.local</code> แล้วรีสตาร์ต server</p>
+        {!publicAppUrl ? (
+          <p className="configuration-notice">ยังไม่สร้าง QR เพราะ URL เว็บไม่ถูกต้องหรือยังไม่ได้ตั้งค่า สำหรับ Vercel ให้ตั้ง <code>NEXT_PUBLIC_APP_URL</code> เป็น URL HTTPS ของเว็บจริง แล้ว deploy ใหม่ ส่วนการใช้งานในเครื่องให้ตั้ง URL ใน <code>.env.local</code> และรีสตาร์ต server</p>
         ) : null}
 
         <section className="branch-layout table-management-layout">
@@ -107,11 +127,11 @@ export default async function TablesPage({
                 {qrTables.map((table) => (
                   <article className="qr-card" key={table.id}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt={`QR สำหรับ ${table.name}`} height={140} src={table.qrDataUrl} width={140} />
+                    {table.qrDataUrl ? <img alt={`QR สำหรับ ${table.name}`} height={140} src={table.qrDataUrl} width={140} /> : <div className="configuration-notice">ยังไม่มี QR</div>}
                     <div>
                       <strong>{table.name}</strong>
                       <p>{table.code} · {table.capacity} ที่นั่ง</p>
-                      <a href={table.qrUrl} rel="noreferrer" target="_blank">เปิดหน้าสั่งอาหาร</a>
+                      {table.qrUrl ? <a href={table.qrUrl} rel="noreferrer" target="_blank">เปิดหน้าสั่งอาหาร</a> : null}
                     </div>
                   </article>
                 ))}

@@ -561,3 +561,140 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .recovery-page p:not(.eyebrow) { color: var(--muted); line-height: 1.7; }
 .recovery-page small { display: block; margin: 12px 0; color: var(--muted); }
 .recovery-page .primary-button { margin-top: 10px; }
+.admin-menu-art { overflow: hidden; }
+.admin-menu-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.menu-image-fields { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.menu-image-fields legend { padding: 0 4px; font-size: 13px; font-weight: 700; }
+.menu-image-fields label { display: grid; gap: 7px; }
+.menu-image-fields small { color: var(--muted); font-weight: 400; line-height: 1.5; }
+.menu-image-fields input[type="file"] { padding: 8px; }
+.readiness-panel { margin-top: 18px; }
+.readiness-list { list-style: none; padding: 0; margin: 0; }
+.readiness-check { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.readiness-check p { margin: 5px 0 0; color: var(--muted); overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+.readiness-check a { color: var(--moss); font-size: 13px; }
+.readiness-ok, .readiness-attention { border-radius: 8px; padding: 5px 8px; font-size: 12px; text-align: center; }
+.readiness-ok { background: #e7f4eb; color: #235c36; }
+.readiness-attention { background: #fff0d3; color: #785009; }
+@media (max-width: 600px) { .readiness-check { grid-template-columns: 70px minmax(0, 1fr); } .readiness-check a { grid-column: 2; } }
+
+/* Commerce, membership, and printable tax documents */
+.stacked-form { display: grid; gap: 12px; margin-top: 18px; }
+.stacked-form label, .bill-action-form label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 750; }
+.stacked-form input, .stacked-form select, .stacked-form textarea, .bill-action-form input, .bill-action-form textarea { width: 100%; min-width: 0; padding: 10px 11px; color: var(--ink); background: #fbfcfb; border: 1px solid #cdd9d0; border-radius: 9px; font: inherit; }
+.stacked-form .checkbox-row { display: flex; align-items: center; gap: 9px; }
+.stacked-form .checkbox-row input { width: 18px; height: 18px; }
+.form-success { margin: 0; padding: 10px 12px; color: #235c36; background: #e7f4eb; border-radius: 9px; font-size: 13px; }
+.tax-branch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)); gap: 18px; }
+.tax-note { margin-top: 18px; }
+.tax-note p { max-width: 800px; color: var(--muted); line-height: 1.65; }
+.bill-member-info { display: flex; justify-content: space-between; gap: 8px; margin: 10px 0; padding: 10px 12px; background: #edf7ef; border-radius: 9px; font-size: 12px; }
+.bill-member-info span { color: var(--muted); }
+.tax-invoice-form { margin-top: 12px; }
+.tax-invoice-link a { color: var(--moss); font-weight: 750; }
+.tax-invoice-paper { width: min(210mm, calc(100% - 32px)); min-height: 285mm; margin: 24px auto; padding: 18mm; color: #1a241d; background: white; border: 1px solid #dce4dd; box-shadow: 0 10px 35px #102e1a16; font-family: Arial, sans-serif; }
+.invoice-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.invoice-toolbar a { color: var(--moss); }
+.tax-document-heading { text-align: center; padding-bottom: 18px; border-bottom: 1px solid #87958b; }
+.tax-document-heading > strong { font-size: 22px; }
+.tax-document-heading h1 { margin: 10px 0 5px; font-size: 20px; }
+.tax-document-heading p { margin: 4px 0; font-size: 12px; line-height: 1.5; }
+.tax-document-meta { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0; font-size: 12px; }
+.tax-document-meta p { margin: 0; }
+.invoice-buyer { margin: 20px 0; padding: 14px; border: 1px solid #cbd5cc; border-radius: 6px; font-size: 12px; }
+.invoice-buyer h2 { margin: 0 0 9px; font-size: 14px; }
+.invoice-buyer p { margin: 5px 0; white-space: pre-wrap; }
+.invoice-lines { width: 100%; border-collapse: collapse; font-size: 12px; }
+.invoice-lines th, .invoice-lines td { padding: 9px 7px; border: 1px solid #cbd5cc; text-align: right; }
+.invoice-lines th:first-child, .invoice-lines td:first-child { text-align: left; }
+.invoice-lines th { background: #f1f5f1; }
+.invoice-totals { width: min(340px, 100%); margin: 18px 0 0 auto; font-size: 12px; }
+.invoice-totals p { display: flex; justify-content: space-between; gap: 14px; margin: 0; padding: 7px 0; border-bottom: 1px solid #e0e7e1; }
+.invoice-grand-total { margin-top: 5px !important; border-bottom: 0 !important; font-size: 15px; }
+.invoice-footer { margin-top: 55px; padding-top: 10px; border-top: 1px solid #87958b; text-align: center; color: #657269; font-size: 10px; }
+@media print { body { background: white !important; } .tax-invoice-paper { width: 100%; min-height: 0; margin: 0; padding: 12mm; border: 0; box-shadow: none; } .print-hide { display: none !important; } @page { size: A4 portrait; margin: 10mm; } }
+@media (max-width: 800px) { .branch-layout { grid-template-columns: 1fr; } .tax-document-meta { flex-wrap: wrap; } }
+
+/* Purpose-built tablet layouts for customer ordering and employee counter work */
+.tablet-ordering-label, .tablet-staff-label { display: none; }
+@media (min-width: 681px) and (max-width: 1100px) {
+  .ordering-page { padding: 18px; }
+  .ordering-header { margin-bottom: 14px; }
+  .ordering-header h1 { font-size: 26px; }
+  .ordering-header .eyebrow { margin-bottom: 5px; }
+  .tablet-ordering-label { display: inline-flex; margin-right: 7px; padding: 4px 8px; color: #215c40; background: #dff1e5; border-radius: 999px; font-size: 10px; font-weight: 900; }
+  .ordering-layout { gap: 12px; }
+  .category-button { min-height: 46px; }
+  .catalog { padding: 18px; }
+  .menu-grid { gap: 11px; }
+  .menu-card { box-shadow: 0 4px 14px #133b2110; }
+  .food-illustration { height: 138px; }
+  .menu-footer button { min-width: 76px; min-height: 42px; }
+  .quantity-control button { width: 34px; height: 34px; }
+  .order-cart { z-index: 2; border-color: #cbded0; box-shadow: 0 8px 24px #133b2114; }
+  .order-cart .primary-button { min-height: 50px; }
+  .text-action { min-height: 44px; }
+  .pos-page { padding-top: 26px; }
+  .pos-layout { grid-template-columns: minmax(0, .95fr) minmax(330px, 1.05fr); gap: 14px; align-items: start; }
+  .table-board { position: sticky; top: 12px; padding: 14px; }
+  .table-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 9px; }
+  .table-card { min-height: 128px; padding: 12px; }
+  .pos-order-panel { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; padding: 17px; }
+  .counter-menu-grid { max-height: min(38dvh, 380px); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .counter-menu-item { min-height: 74px; align-content: center; padding: 12px; }
+  .counter-menu-item strong { font-size: 13px; }
+  .counter-menu-item small { font-size: 12px; }
+  .add-menu-button, .payment-actions button, .billing-controls button, .table-operation-row button { min-height: 46px; }
+  .tablet-staff-label { display: inline-flex; margin-top: 8px; padding: 5px 9px; color: #215c40; background: #dff1e5; border-radius: 999px; font-size: 11px; font-weight: 900; }
+  .billing-details summary, .bill-action-form summary, .void-bill-control summary { min-height: 46px; }
+}
+@media (min-width: 681px) and (max-width: 1100px) and (orientation: landscape) {
+  .ordering-layout { grid-template-columns: 138px minmax(0, 1fr) 270px; }
+  .category-rail { flex-direction: column; max-height: calc(100dvh - 130px); overflow-y: auto; }
+  .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-cart { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .cart-lines { max-height: min(33dvh, 300px); }
+  .table-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+}
+@media (min-width: 681px) and (max-width: 1100px) and (orientation: portrait) {
+  .ordering-layout { display: flex; flex-direction: column; }
+  .category-rail { flex: 0 0 auto; flex-direction: row; overflow-x: auto; padding: 8px; }
+  .category-button { flex: 0 0 auto; }
+  .catalog { width: 100%; }
+  .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-cart { position: sticky; bottom: 8px; max-height: 38dvh; overflow-y: auto; }
+  .cart-lines { max-height: 105px; margin: 8px 0; }
+  .cart-line { padding: 7px 0; }
+  .cart-heading { align-items: center; }
+  .cart-heading h2 { font-size: 17px; }
+  .cart-total { padding: 8px 0; }
+  .cart-total strong { font-size: 19px; }
+  .pos-layout { grid-template-columns: minmax(0, .9fr) minmax(310px, 1.1fr); }
+  .table-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 681px) and (max-width: 840px) and (orientation: landscape) {
+  .ordering-layout { grid-template-columns: 112px minmax(0, 1fr) 238px; gap: 8px; }
+  .ordering-page { padding: 10px; }
+  .ordering-header h1 { font-size: 22px; }
+  .catalog { padding: 12px; }
+  .catalog-heading h2 { font-size: 18px; }
+  .category-rail { padding: 7px; }
+  .category-button { padding: 9px 7px; font-size: 12px; }
+  .order-cart { padding: 13px; }
+  .table-board, .pos-order-panel { padding: 12px; }
+}
+
+@media (pointer: coarse) and (min-width: 1101px) {
+  .tablet-ordering-label, .tablet-staff-label { display: inline-flex; }
+  .ordering-layout { grid-template-columns: 150px minmax(0, 1fr) 310px; }
+  .category-button { min-height: 48px; }
+  .menu-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .food-illustration { height: 160px; }
+  .menu-footer button, .quantity-control button, .order-cart .primary-button, .text-action { min-height: 48px; }
+  .menu-footer button { min-width: 86px; }
+  .pos-layout { grid-template-columns: minmax(0, 1fr) minmax(390px, .95fr); align-items: start; }
+  .table-grid { grid-template-columns: repeat(3, minmax(115px, 1fr)); }
+  .pos-order-panel { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .table-card, .add-menu-button, .counter-menu-item, .payment-actions button { min-height: 48px; }
+  .kitchen-ticket footer button, .request-actions > button, .request-actions > a { min-height: 46px; }
+}

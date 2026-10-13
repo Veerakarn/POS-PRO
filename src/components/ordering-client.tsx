@@ -152,6 +152,7 @@ export function OrderingClient({
           <h1>{tableName ?? `โต๊ะ ${tableCode.toUpperCase()}`}</h1>
         </div>
         <div className="table-session-status">
+          <span className="tablet-ordering-label">โหมดแท็บเล็ต</span>
           <span className="live-dot" /> กำลังรับออเดอร์
         </div>
       </header>

@@ -90,6 +90,8 @@ export default async function CounterPosPage({
                   totalSatang: true,
                   lines: { orderBy: { createdAt: "asc" }, select: { id: true, orderItemId: true, quantity: true, nameSnapshot: true, subtotalSatang: true } },
                   discounts: { orderBy: { createdAt: "asc" }, select: { id: true, billLineId: true, amountSatang: true, reason: true } },
+                  member: { select: { id: true, name: true, phone: true, loyaltyEntries: { select: { points: true } } } },
+                  taxInvoices: { select: { id: true, invoiceNumber: true } },
                   payments: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } },
                 },
               },
@@ -167,6 +169,8 @@ export default async function CounterPosPage({
         paidSatang: bill.payments.reduce((sum, payment) => sum + payment.amountSatang, 0),
         lines: bill.lines.map((line) => ({ id: line.id, orderItemId: line.orderItemId, quantity: line.quantity, name: line.nameSnapshot, subtotalSatang: line.subtotalSatang })),
         discounts: bill.discounts,
+        member: bill.member ? { ...bill.member, points: bill.member.loyaltyEntries.reduce((sum, entry) => sum + entry.points, 0) } : null,
+        taxInvoices: bill.taxInvoices,
       })) ?? [],
     };
   });

@@ -8,7 +8,8 @@ import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { consumeOrderIngredients, restoreCancelledOrderItemIngredients } from "@/lib/inventory-service";
 import { enqueueOrderTickets } from "@/lib/print-service";
-import { applyBillDiscount, createBillFromSelections, SalesError, settleBillPayment, voidOpenBill } from "@/lib/sales-service";
+import { applyBillDiscount, createBillFromSelections, redeemMemberPoints, SalesError, settleBillPayment, voidOpenBill } from "@/lib/sales-service";
+import { normalizeThaiPhone } from "@/lib/commerce-rules";
 
 export type CounterActionResult = {
   error?: string;
@@ -386,6 +387,76 @@ export async function applyCounterDiscount(input: { branchId: string; billId: st
   } catch (error) {
     return { error: error instanceof SalesError ? error.message : "บันทึกส่วนลดไม่สำเร็จ" };
   }
+}
+
+export async function applyCounterPromoCode(input: { branchId: string; billId: string; code: string }): Promise<CounterActionResult> {
+  if (!isSafeIdentifier(input.branchId) || !isSafeIdentifier(input.billId) || !/^[a-z0-9_-]{3,24}$/i.test(input.code.trim())) return { error: "รหัสโปรโมชั่นไม่ถูกต้อง" };
+  const user = await requirePermission("payment.manage", input.branchId);
+  try {
+    await db.$transaction(async (tx) => {
+      const code = input.code.trim().toUpperCase();
+      const promo = await tx.promoCode.findFirst({ where: { organizationId: user.organizationId, code, isActive: true }, select: { id: true, code: true, kind: true, value: true, minimumSatang: true, maximumDiscountSatang: true, usageLimit: true, startsAt: true, endsAt: true } });
+      if (!promo) throw new SalesError("ไม่พบรหัสโปรโมชั่นหรือปิดใช้งานแล้ว");
+      await tx.$queryRaw`SELECT id FROM "PromoCode" WHERE id = ${promo.id} FOR UPDATE`;
+      await tx.promoCode.update({ where: { id: promo.id }, data: { updatedAt: new Date() } });
+      const now = new Date();
+      if ((promo.startsAt && promo.startsAt > now) || (promo.endsAt && promo.endsAt < now)) throw new SalesError("โปรโมชั่นยังไม่เริ่มหรือหมดอายุแล้ว");
+      const used = await tx.promotionRedemption.count({ where: { promoCodeId: promo.id, bill: { status: { not: "VOIDED" } } } });
+      if (promo.usageLimit !== null && used >= promo.usageLimit) throw new SalesError("โปรโมชั่นถูกใช้ครบจำนวนแล้ว");
+      const bill = await tx.bill.findFirst({ where: { id: input.billId, branchId: input.branchId, status: { in: ["OPEN", "PARTIALLY_PAID"] }, branch: { organizationId: user.organizationId } }, select: { subtotalSatang: true, discountSatang: true } });
+      if (!bill) throw new SalesError("ไม่พบบิลที่รอชำระ");
+      if (bill.subtotalSatang - bill.discountSatang < promo.minimumSatang) throw new SalesError("ยอดซื้อไม่ถึงขั้นต่ำของโปรโมชั่น");
+      if (await tx.promotionRedemption.findUnique({ where: { billId: input.billId }, select: { id: true } })) throw new SalesError("บิลนี้ใช้โปรโมชั่นไปแล้ว");
+      let value = promo.value;
+      if (promo.kind === "PERCENT" && promo.maximumDiscountSatang !== null) {
+        value = Math.min(value, 10_000);
+      }
+      const discount = await applyBillDiscount(tx, { organizationId: user.organizationId, branchId: input.branchId, billId: input.billId, kind: promo.kind, value, reason: `โปรโมชั่น ${promo.code}`, actorId: user.id, promoCodeId: promo.id });
+      if (promo.maximumDiscountSatang !== null && discount.amountSatang > promo.maximumDiscountSatang) {
+        await tx.billDiscount.delete({ where: { id: discount.id } });
+        const capped = await applyBillDiscount(tx, { organizationId: user.organizationId, branchId: input.branchId, billId: input.billId, kind: "FIXED", value: promo.maximumDiscountSatang, reason: `โปรโมชั่น ${promo.code}`, actorId: user.id, promoCodeId: promo.id });
+        await tx.promotionRedemption.create({ data: { promoCodeId: promo.id, billId: input.billId, codeSnapshot: promo.code, amountSatang: capped.amountSatang } });
+      } else {
+        await tx.promotionRedemption.create({ data: { promoCodeId: promo.id, billId: input.billId, codeSnapshot: promo.code, amountSatang: discount.amountSatang } });
+      }
+      await tx.auditLog.create({ data: { organizationId: user.organizationId, branchId: input.branchId, actorId: user.id, action: "bill.promotion_applied", entityType: "Bill", entityId: input.billId, after: { code: promo.code, amountSatang: Math.min(discount.amountSatang, promo.maximumDiscountSatang ?? Number.MAX_SAFE_INTEGER) } } });
+    }, { maxWait: 10_000, timeout: 20_000, isolationLevel: "Serializable" });
+    refreshCounterPages(input.branchId);
+    return { success: "ใช้โปรโมชั่นแล้ว" };
+  } catch (error) { return { error: error instanceof SalesError ? error.message : "ใช้โปรโมชั่นไม่สำเร็จ" }; }
+}
+
+export async function linkCounterMember(input: { branchId: string; billId: string; phone: string; name: string }): Promise<CounterActionResult> {
+  const phone = normalizeThaiPhone(input.phone);
+  const name = input.name.trim();
+  if (!phone || name.length < 2 || name.length > 100) return { error: "กรอกเบอร์มือถือไทยและชื่อสมาชิกให้ถูกต้อง" };
+  const user = await requirePermission("payment.manage", input.branchId);
+  try {
+    await db.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({ where: { id: input.billId, branchId: input.branchId, status: { in: ["OPEN", "PARTIALLY_PAID"] }, branch: { organizationId: user.organizationId } }, select: { id: true } });
+      if (!bill) throw new SalesError("ไม่พบบิลที่รอชำระ");
+      const member = await tx.customerMember.upsert({ where: { organizationId_phone: { organizationId: user.organizationId, phone } }, create: { organizationId: user.organizationId, phone, name }, update: { name, isActive: true }, select: { id: true } });
+      await tx.bill.update({ where: { id: bill.id }, data: { memberId: member.id } });
+      await tx.auditLog.create({ data: { organizationId: user.organizationId, branchId: input.branchId, actorId: user.id, action: "bill.member_linked", entityType: "Bill", entityId: bill.id, after: { memberId: member.id, phone } } });
+    }, { maxWait: 10_000, timeout: 15_000 });
+    refreshCounterPages(input.branchId);
+    return { success: "ผูกสมาชิกกับบิลแล้ว แต้มจะเข้าเมื่อชำระครบ" };
+  } catch (error) { return { error: error instanceof SalesError ? error.message : "ผูกสมาชิกไม่สำเร็จ" }; }
+}
+
+export async function redeemCounterMemberPoints(input: { branchId: string; billId: string }): Promise<CounterActionResult> {
+  const user = await requirePermission("payment.manage", input.branchId);
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({ where: { id: input.billId, branchId: input.branchId, branch: { organizationId: user.organizationId } }, select: { memberId: true } });
+      if (!bill?.memberId) throw new SalesError("ผูกสมาชิกกับบิลก่อนแลกแต้ม");
+      const redemption = await redeemMemberPoints(tx, { organizationId: user.organizationId, branchId: input.branchId, billId: input.billId, memberId: bill.memberId });
+      await tx.auditLog.create({ data: { organizationId: user.organizationId, branchId: input.branchId, actorId: user.id, action: "bill.member_points_redeemed", entityType: "Bill", entityId: input.billId, after: redemption } });
+      return redemption;
+    }, { maxWait: 10_000, timeout: 20_000, isolationLevel: "Serializable" });
+    refreshCounterPages(input.branchId);
+    return { success: `แลก ${result.points} แต้ม ลด ${result.discountSatang / 100} บาทแล้ว` };
+  } catch (error) { return { error: error instanceof SalesError ? error.message : "แลกแต้มไม่สำเร็จ" }; }
 }
 
 export async function cancelCounterOrderItem(input: { branchId: string; tableId: string; orderItemId: string; reason: string }): Promise<CounterActionResult> {

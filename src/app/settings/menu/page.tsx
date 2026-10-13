@@ -78,7 +78,11 @@ export default async function MenuPage() {
           {organization.menuItems.length ? <div className="admin-menu-grid">
             {organization.menuItems.map((item) => (
               <article className="admin-menu-card" key={item.id}>
-                <div className="admin-menu-art">{item.imageUrl ? "▣" : "🍽️"}</div>
+                <div className="admin-menu-art">{item.imageUrl ? (
+                  // External image URLs are supplied by the restaurant as well as local uploads.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt={item.name} src={item.imageUrl} loading="lazy" width={360} height={180} />
+                ) : "🍽️"}</div>
                 <div><span>{item.category.name}</span><h3>{item.name}</h3><p>{item.description || "ไม่มีคำอธิบาย"}</p></div>
                 <footer><small>{item.sku || "ไม่มี SKU"}</small><strong>{formatBaht(item.priceSatang)}</strong></footer>
                 <MenuItemEditor

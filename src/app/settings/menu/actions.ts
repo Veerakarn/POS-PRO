@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOrganizationPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { readMenuImage } from "@/lib/menu-image";
 
 export type MenuState = {
   error?: string;
@@ -74,7 +75,6 @@ export async function createMenuItem(_: MenuState, formData: FormData): Promise<
   const name = readText(formData, "name");
   const description = readText(formData, "description");
   const sku = readText(formData, "sku").toUpperCase();
-  const imageUrl = readText(formData, "imageUrl");
   const priceSatang = parsePriceSatang(readText(formData, "price"));
 
   if (!categoryId || !name || name.length > 100 || !priceSatang) {
@@ -83,19 +83,21 @@ export async function createMenuItem(_: MenuState, formData: FormData): Promise<
   if (sku && !/^[A-Z0-9_-]{2,32}$/.test(sku)) {
     return { error: "SKU ใช้ A-Z, 0-9, _ หรือ - ความยาว 2–32 ตัว" };
   }
-  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
-    return { error: "URL รูปภาพต้องขึ้นต้นด้วย http:// หรือ https://" };
-  }
 
   const category = await db.menuCategory.findFirst({
     where: {
       id: categoryId,
       organizationId: user.organizationId,
+      isActive: true,
     },
     select: { id: true },
   });
   if (!category) return { error: "ไม่พบหมวดหมู่ที่เลือก" };
 
+  let image;
+  try { image = await readMenuImage(formData); } catch (error) {
+    return { error: error instanceof Error ? error.message : "อ่านรูปภาพไม่สำเร็จ" };
+  }
   try {
     const menuItem = await db.$transaction(async (tx) => {
       const createdItem = await tx.menuItem.create({
@@ -105,7 +107,8 @@ export async function createMenuItem(_: MenuState, formData: FormData): Promise<
           name,
           description: description || null,
           sku: sku || null,
-          imageUrl: imageUrl || null,
+          imageUrl: image.kind === "keep" ? null : image.url,
+          ...(image.kind === "upload" ? { uploadedImage: { create: { id: image.id, content: image.content } } } : {}),
           priceSatang,
         },
       });
@@ -124,7 +127,7 @@ export async function createMenuItem(_: MenuState, formData: FormData): Promise<
         },
       });
       return createdItem;
-    });
+    }, { maxWait: 10_000, timeout: 20_000 });
     refreshMenuPages();
     return { success: `เพิ่มเมนู ${menuItem.name} แล้ว` };
   } catch (error) {
@@ -141,7 +144,6 @@ export async function updateMenuItem(_: MenuState, formData: FormData): Promise<
   const name = readText(formData, "name");
   const description = readText(formData, "description");
   const sku = readText(formData, "sku").toUpperCase();
-  const imageUrl = readText(formData, "imageUrl");
   const priceSatang = parsePriceSatang(readText(formData, "price"));
 
   if (!menuItemId || !categoryId || !name || name.length > 100 || !priceSatang) {
@@ -149,9 +151,6 @@ export async function updateMenuItem(_: MenuState, formData: FormData): Promise<
   }
   if (sku && !/^[A-Z0-9_-]{2,32}$/.test(sku)) {
     return { error: "SKU ใช้ A-Z, 0-9, _ หรือ - ความยาว 2–32 ตัว" };
-  }
-  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
-    return { error: "URL รูปภาพต้องขึ้นต้นด้วย http:// หรือ https://" };
   }
 
   const [menuItem, category] = await Promise.all([
@@ -166,8 +165,15 @@ export async function updateMenuItem(_: MenuState, formData: FormData): Promise<
   ]);
   if (!menuItem || !category) return { error: "ไม่พบเมนูหรือหมวดหมู่ที่เลือก" };
 
+  let image;
+  try { image = await readMenuImage(formData); } catch (error) {
+    return { error: error instanceof Error ? error.message : "อ่านรูปภาพไม่สำเร็จ" };
+  }
   try {
     await db.$transaction(async (tx) => {
+      // Lock this item before replacing its one image, including simultaneous staff edits.
+      await tx.$queryRaw`SELECT id FROM "MenuItem" WHERE id = ${menuItem.id} FOR UPDATE`;
+      if (image.kind !== "keep") await tx.menuImage.deleteMany({ where: { menuItemId: menuItem.id } });
       await tx.menuItem.update({
         where: { id: menuItem.id },
         data: {
@@ -175,7 +181,8 @@ export async function updateMenuItem(_: MenuState, formData: FormData): Promise<
           name,
           description: description || null,
           sku: sku || null,
-          imageUrl: imageUrl || null,
+          ...(image.kind !== "keep" ? { imageUrl: image.url } : {}),
+          ...(image.kind === "upload" ? { uploadedImage: { create: { id: image.id, content: image.content } } } : {}),
           priceSatang,
         },
       });
@@ -194,10 +201,10 @@ export async function updateMenuItem(_: MenuState, formData: FormData): Promise<
             imageUrl: menuItem.imageUrl,
             priceSatang: menuItem.priceSatang,
           },
-          after: { categoryId: category.id, name, description: description || null, sku: sku || null, imageUrl: imageUrl || null, priceSatang },
+          after: { categoryId: category.id, name, description: description || null, sku: sku || null, imageUrl: image.kind === "keep" ? menuItem.imageUrl : image.url, priceSatang },
         },
       });
-    });
+    }, { maxWait: 10_000, timeout: 20_000 });
     refreshMenuPages();
     return { success: `บันทึกการแก้ไข ${name} แล้ว` };
   } catch (error) {

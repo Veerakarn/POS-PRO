@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { MenuImageFields } from "@/components/menu-image-fields";
 
 import {
   createMenuCategory,
@@ -55,11 +56,8 @@ export function MenuItemForm({ categories }: { categories: Array<{ id: string; n
           <span>SKU</span>
           <input disabled={!hasCategories} name="sku" placeholder="KRP01 (ไม่บังคับ)" />
         </label>
-        <label>
-          <span>URL รูปภาพ</span>
-          <input disabled={!hasCategories} name="imageUrl" placeholder="https://... (ไม่บังคับ)" type="url" />
-        </label>
       </div>
+      <MenuImageFields disabled={!hasCategories || isPending} />
       {state.error ? <p className="form-error" role="alert">{state.error}</p> : null}
       {state.success ? <p className="form-success" role="status">{state.success}</p> : null}
       <button className="primary-button" disabled={isPending || !hasCategories} type="submit">{isPending ? "กำลังเพิ่มเมนู…" : "เพิ่มเมนู"}</button>

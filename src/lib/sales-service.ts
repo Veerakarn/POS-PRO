@@ -1,6 +1,7 @@
 import { Prisma, type DiscountKind } from "@prisma/client";
 
 import { enqueueReceipt } from "./print-service.ts";
+import { calculateVat, earnedPoints, redemptionSatang } from "./commerce-rules.ts";
 
 export class SalesError extends Error {}
 
@@ -10,15 +11,15 @@ export async function recalculateBill(tx: TransactionClient, billId: string) {
   const [lineTotal, discountTotal, bill] = await Promise.all([
     tx.billLine.aggregate({ where: { billId }, _sum: { subtotalSatang: true } }),
     tx.billDiscount.aggregate({ where: { billId }, _sum: { amountSatang: true } }),
-    tx.bill.findUnique({ where: { id: billId }, select: { taxSatang: true } }),
+    tx.bill.findUnique({ where: { id: billId }, select: { taxRateBps: true, taxIncluded: true } }),
   ]);
   if (!bill) throw new SalesError("ไม่พบบิล");
   const subtotalSatang = lineTotal._sum.subtotalSatang ?? 0;
   const discountSatang = Math.min(discountTotal._sum.amountSatang ?? 0, subtotalSatang);
-  const totalSatang = Math.max(0, subtotalSatang - discountSatang + bill.taxSatang);
+  const { vatSatang, totalSatang } = calculateVat(Math.max(0, subtotalSatang - discountSatang), bill.taxRateBps, bill.taxIncluded);
   return tx.bill.update({
     where: { id: billId },
-    data: { subtotalSatang, discountSatang, totalSatang },
+    data: { subtotalSatang, discountSatang, taxSatang: vatSatang, totalSatang },
   });
 }
 
@@ -31,6 +32,7 @@ export async function createBillFromSelections(tx: TransactionClient, input: {
     where: { id: input.tableSessionId, branchId: input.branchId, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } },
     select: {
       id: true,
+      branch: { select: { taxProfile: { select: { isVatRegistered: true, vatRateBps: true, taxIncluded: true } } } },
       orders: {
         where: { status: { not: "CANCELLED" } },
         select: { items: { where: { status: { not: "CANCELLED" } }, select: { id: true, nameSnapshot: true, priceSatang: true, quantity: true } } },
@@ -63,13 +65,19 @@ export async function createBillFromSelections(tx: TransactionClient, input: {
 
   const latestBill = await tx.bill.aggregate({ where: { branchId: input.branchId }, _max: { billNumber: true } });
   const subtotalSatang = selectedItems.reduce((sum, item) => sum + item.priceSatang * item.quantity, 0);
+  const taxRateBps = session.branch.taxProfile?.isVatRegistered ? session.branch.taxProfile.vatRateBps : 0;
+  const taxIncluded = session.branch.taxProfile?.taxIncluded ?? true;
+  const tax = calculateVat(subtotalSatang, taxRateBps, taxIncluded);
   return tx.bill.create({
     data: {
       branchId: input.branchId,
       tableSessionId: session.id,
       billNumber: (latestBill._max.billNumber ?? 0) + 1,
       subtotalSatang,
-      totalSatang: subtotalSatang,
+      totalSatang: tax.totalSatang,
+      taxSatang: tax.vatSatang,
+      taxRateBps,
+      taxIncluded,
       lines: {
         create: selectedItems.map((item) => ({
           orderItemId: item.id,
@@ -93,6 +101,7 @@ export async function applyBillDiscount(tx: TransactionClient, input: {
   value: number;
   reason: string;
   actorId: string;
+  promoCodeId?: string;
 }) {
   const bill = await tx.bill.findFirst({
     where: {
@@ -119,9 +128,10 @@ export async function applyBillDiscount(tx: TransactionClient, input: {
   const paid = bill.payments.reduce((sum, payment) => sum + payment.amountSatang, 0);
   if (bill.totalSatang - amountSatang < paid) throw new SalesError("ส่วนลดทำให้ยอดสุทธิต่ำกว่ายอดที่รับชำระแล้ว");
   const discount = await tx.billDiscount.create({
-    data: { billId: bill.id, billLineId: input.billLineId || null, kind: input.kind, value: input.value, amountSatang, reason: input.reason, actorId: input.actorId },
+    data: { billId: bill.id, billLineId: input.billLineId || null, kind: input.kind, value: input.value, amountSatang, reason: input.reason, actorId: input.actorId, promoCodeId: input.promoCodeId ?? null },
   });
-  await recalculateBill(tx, bill.id);
+  const updatedBill = await recalculateBill(tx, bill.id);
+  if (updatedBill.totalSatang < paid) throw new SalesError("ส่วนลดทำให้ยอดสุทธิต่ำกว่ายอดที่รับชำระแล้ว");
   return discount;
 }
 
@@ -137,7 +147,7 @@ export async function settleBillPayment(tx: TransactionClient, input: {
   if (existing) return { duplicate: true, billId: existing.billId, paymentId: existing.id, closedSession: false };
   const bill = await tx.bill.findFirst({
     where: { id: input.billId, branchId: input.branchId, status: { in: ["OPEN", "PARTIALLY_PAID"] } },
-    select: { id: true, totalSatang: true, tableSessionId: true, payments: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } } },
+    select: { id: true, totalSatang: true, subtotalSatang: true, discountSatang: true, memberId: true, tableSessionId: true, branch: { select: { organizationId: true } }, payments: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } } },
   });
   if (!bill) throw new SalesError("ไม่พบบิลที่รอชำระ");
   const method = await tx.paymentMethodSetting.findFirst({ where: { branchId: input.branchId, code: input.methodCode, isActive: true }, select: { code: true, isCash: true } });
@@ -158,6 +168,7 @@ export async function settleBillPayment(tx: TransactionClient, input: {
 
   let closedSession = false;
   if (isPaid) {
+    if (bill.memberId) await awardBillPoints(tx, { organizationId: bill.branch.organizationId, billId: bill.id, memberId: bill.memberId, taxableSatang: Math.max(0, bill.subtotalSatang - bill.discountSatang) });
     await enqueueReceipt(tx, { branchId: input.branchId, billId: bill.id });
     const [itemTotal, allocationTotal, unsettledBills] = await Promise.all([
       tx.orderItem.aggregate({ where: { order: { tableSessionId: bill.tableSessionId, status: { not: "CANCELLED" } }, status: { not: "CANCELLED" } }, _sum: { quantity: true } }),
@@ -207,7 +218,10 @@ export async function refundPayment(tx: TransactionClient, input: {
   if (input.amountSatang === refundable) await tx.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } });
   const bill = await tx.bill.findUnique({ where: { id: payment.billId }, select: { totalSatang: true, refunds: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } } } });
   const totalRefunded = bill?.refunds.reduce((sum, row) => sum + row.amountSatang, 0) ?? 0;
-  if (bill && totalRefunded >= bill.totalSatang) await tx.bill.update({ where: { id: payment.billId }, data: { status: "REFUNDED" } });
+  if (bill && totalRefunded >= bill.totalSatang) {
+    await tx.bill.update({ where: { id: payment.billId }, data: { status: "REFUNDED" } });
+    await reverseBillPoints(tx, payment.billId, "คืนเงินครบทั้งบิล");
+  }
   return { ...refund, duplicate: false };
 }
 
@@ -228,6 +242,43 @@ export async function voidOpenBill(tx: TransactionClient, input: {
   });
   if (!bill) throw new SalesError("ไม่พบบิลที่ยกเลิกได้");
   if (bill.payments.length) throw new SalesError("บิลที่รับเงินแล้วต้องใช้การคืนเงิน");
+  await reverseBillPoints(tx, bill.id, "ยกเลิกบิล");
   return tx.bill.update({ where: { id: bill.id }, data: { status: "VOIDED", voidedAt: new Date(), voidReason: input.reason } });
+}
+
+async function awardBillPoints(tx: TransactionClient, input: { organizationId: string; billId: string; memberId: string; taxableSatang: number }) {
+  await tx.$queryRaw`SELECT id FROM "CustomerMember" WHERE id = ${input.memberId} FOR UPDATE`;
+  const settings = await tx.membershipSettings.upsert({ where: { organizationId: input.organizationId }, create: { organizationId: input.organizationId }, update: {}, select: { pointsPerHundredSatang: true, pointsPerHundredBaht: true } });
+  const points = earnedPoints(input.taxableSatang, settings.pointsPerHundredSatang, settings.pointsPerHundredBaht);
+  if (points > 0) await tx.loyaltyEntry.createMany({ data: [{ memberId: input.memberId, billId: input.billId, entryKey: `earn:${input.billId}`, kind: "EARN", points, note: "แต้มจากยอดซื้อ" }], skipDuplicates: true });
+}
+
+export async function redeemMemberPoints(tx: TransactionClient, input: { organizationId: string; branchId: string; billId: string; memberId: string }) {
+  const bill = await tx.bill.findFirst({ where: { id: input.billId, branchId: input.branchId, memberId: input.memberId, status: { in: ["OPEN", "PARTIALLY_PAID"] }, branch: { organizationId: input.organizationId } }, select: { id: true, totalSatang: true, discountSatang: true, payments: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } } } });
+  if (!bill) throw new SalesError("ต้องผูกสมาชิกกับบิลก่อนแลกแต้ม");
+  if (await tx.loyaltyEntry.findUnique({ where: { memberId_entryKey: { memberId: input.memberId, entryKey: `redeem:${bill.id}` } }, select: { id: true } })) throw new SalesError("บิลนี้ใช้แต้มไปแล้ว");
+  await tx.$queryRaw`SELECT id FROM "CustomerMember" WHERE id = ${input.memberId} FOR UPDATE`;
+  await tx.customerMember.update({ where: { id: input.memberId }, data: { updatedAt: new Date() } });
+  const [balance, settings] = await Promise.all([
+    tx.loyaltyEntry.aggregate({ where: { memberId: input.memberId }, _sum: { points: true } }),
+    tx.membershipSettings.upsert({ where: { organizationId: input.organizationId }, create: { organizationId: input.organizationId }, update: {}, select: { redemptionCapPercent: true } }),
+  ]);
+  const discountSatang = redemptionSatang(balance._sum.points ?? 0, 100, bill.totalSatang, settings.redemptionCapPercent);
+  const paid = bill.payments.reduce((sum, payment) => sum + payment.amountSatang, 0);
+  if (discountSatang <= 0 || bill.totalSatang - discountSatang < paid) throw new SalesError("สมาชิกมีแต้มไม่พอสำหรับแลก หรือยอดที่รับชำระแล้วสูงเกินวงเงินแลกแต้ม");
+  const points = Math.floor(discountSatang / 100) * 100;
+  if (!points) throw new SalesError("จำนวนแต้มไม่พอสำหรับแลกอย่างน้อย 1 บาท");
+  await applyBillDiscount(tx, { organizationId: input.organizationId, branchId: input.branchId, billId: bill.id, kind: "FIXED", value: points, reason: "แลกแต้มสมาชิก", actorId: "SYSTEM" });
+  await tx.loyaltyEntry.create({ data: { memberId: input.memberId, billId: bill.id, entryKey: `redeem:${bill.id}`, kind: "REDEEM", points: -points, note: `แลกส่วนลด ${points / 100} บาท` } });
+  return { points, discountSatang: points };
+}
+
+async function reverseBillPoints(tx: TransactionClient, billId: string, reason: string) {
+  const bill = await tx.bill.findUnique({ where: { id: billId }, select: { memberId: true } });
+  if (!bill?.memberId) return;
+  const entries = await tx.loyaltyEntry.findMany({ where: { billId, kind: { in: ["EARN", "REDEEM"] } }, select: { entryKey: true, kind: true, points: true } });
+  if (!entries.length) return;
+  await tx.$queryRaw`SELECT id FROM "CustomerMember" WHERE id = ${bill.memberId} FOR UPDATE`;
+  await tx.loyaltyEntry.createMany({ data: entries.map((entry) => ({ memberId: bill.memberId!, billId, entryKey: `reversal:${entry.kind.toLowerCase()}:${billId}`, kind: "REVERSAL", points: -entry.points, note: reason })), skipDuplicates: true });
 }
 
