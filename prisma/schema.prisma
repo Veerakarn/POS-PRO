@@ -72,6 +72,7 @@ enum PrintJobStatus {
 enum PrintDocumentType {
   ORDER_TICKET
   RECEIPT
+  TABLE_QR
   TEST
 }
 

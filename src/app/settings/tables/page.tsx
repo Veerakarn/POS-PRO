@@ -1,35 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import QRCode from "qrcode";
 
 import { TableForm } from "@/components/table-form";
 import { AppShell } from "@/components/app-shell";
 import { getPermissionScope, requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/authorization";
 import { db } from "@/lib/db";
-
-function getPublicAppUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (!configuredUrl) return process.env.NODE_ENV === "production" ? "" : "http://localhost:3000";
-
-  try {
-    const url = new URL(configuredUrl);
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      (process.env.NODE_ENV === "production" && (
-        url.protocol !== "https:" ||
-        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-      ))
-    ) return "";
-
-    return url.origin;
-  } catch {
-    return "";
-  }
-}
 
 export default async function TablesPage({
   searchParams,
@@ -59,7 +36,6 @@ export default async function TablesPage({
               name: true,
               code: true,
               capacity: true,
-              qrSecret: true,
             },
           },
         },
@@ -71,24 +47,6 @@ export default async function TablesPage({
   const selectedBranch = organization.branches.find((branch) => branch.id === requestedBranchId) ?? organization.branches[0];
   if (!selectedBranch) redirect("/account/no-access");
 
-  const publicAppUrl = getPublicAppUrl();
-  const qrTables = await Promise.all(
-    selectedBranch.tables.map(async (table) => {
-      const qrUrl = publicAppUrl
-        ? `${publicAppUrl}/q/${encodeURIComponent(organization.slug)}/${encodeURIComponent(selectedBranch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}`
-        : null;
-      return {
-        ...table,
-        qrUrl,
-        qrDataUrl: qrUrl ? await QRCode.toDataURL(qrUrl, {
-          errorCorrectionLevel: "M",
-          margin: 1,
-          width: 220,
-        }) : null,
-      };
-    }),
-  );
-
   return (
     <AppShell branchName={selectedBranch.name} organizationName={organization.name} userName={user.displayName}>
       <main className="branch-page">
@@ -96,7 +54,7 @@ export default async function TablesPage({
           <div>
             <p className="eyebrow">Back Office · โต๊ะและ QR</p>
             <h1>โต๊ะของ {selectedBranch.name}</h1>
-            <p className="page-description">ทุก QR มี secret เฉพาะโต๊ะ และลิงก์ไปยังหน้าสั่งอาหารของสาขาที่เลือก</p>
+            <p className="page-description">QR จะสร้างใหม่ทุกครั้งที่พนักงานเปิดโต๊ะ และ QR จากรอบก่อนจะใช้สั่งอาหารไม่ได้</p>
           </div>
           {userHasPermission(user.roleAssignments, "branch.manage") ? (
             <Link className="secondary-button" href="/settings/branches">จัดการสาขา</Link>
@@ -113,35 +71,18 @@ export default async function TablesPage({
           </nav>
         ) : null}
 
-        {!publicAppUrl ? (
-          <p className="configuration-notice">ยังไม่สร้าง QR เพราะ URL เว็บไม่ถูกต้องหรือยังไม่ได้ตั้งค่า สำหรับ Vercel ให้ตั้ง <code>NEXT_PUBLIC_APP_URL</code> เป็น URL HTTPS ของเว็บจริง แล้ว deploy ใหม่ ส่วนการใช้งานในเครื่องให้ตั้ง URL ใน <code>.env.local</code> และรีสตาร์ต server</p>
-        ) : null}
-
         <section className="branch-layout table-management-layout">
           <article className="branch-panel">
             <div className="panel-heading">
-              <div><p className="eyebrow">QR ที่พร้อมใช้</p><h2>{qrTables.length} โต๊ะ</h2></div>
+              <div><p className="eyebrow">โต๊ะในสาขา</p><h2>{selectedBranch.tables.length} โต๊ะ</h2></div>
             </div>
-            {qrTables.length ? (
-              <div className="qr-grid">
-                {qrTables.map((table) => (
-                  <article className="qr-card" key={table.id}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {table.qrDataUrl ? <img alt={`QR สำหรับ ${table.name}`} height={140} src={table.qrDataUrl} width={140} /> : <div className="configuration-notice">ยังไม่มี QR</div>}
-                    <div>
-                      <strong>{table.name}</strong>
-                      <p>{table.code} · {table.capacity} ที่นั่ง</p>
-                      {table.qrUrl ? <a href={table.qrUrl} rel="noreferrer" target="_blank">เปิดหน้าสั่งอาหาร</a> : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : <p className="empty-state">ยังไม่มีโต๊ะในสาขานี้ เพิ่มโต๊ะเพื่อสร้าง QR แรกได้จากฟอร์มด้านขวา</p>}
+            {selectedBranch.tables.length ? <div className="table-list">{selectedBranch.tables.map((table) => <article className="printer-route-card" key={table.id}><div><strong>{table.name}</strong><span>{table.code} · {table.capacity} ที่นั่ง</span></div></article>)}</div> : <p className="empty-state">ยังไม่มีโต๊ะในสาขานี้ เพิ่มโต๊ะจากฟอร์มด้านขวาได้เลย</p>}
+            <p className="configuration-notice">เปิดโต๊ะที่หน้า <Link href="/pos">Counter POS</Link> เพื่อสร้าง QR ใหม่และส่งพิมพ์อัตโนมัติ</p>
           </article>
           <aside className="branch-create-card">
             <p className="eyebrow">เพิ่มโต๊ะ</p>
-            <h2>สร้าง QR ใหม่</h2>
-            <p>รหัสโต๊ะจะไม่ซ้ำภายในสาขา และใช้ระบุตัวตนเมื่อลูกค้าสแกน QR</p>
+            <h2>สร้างโต๊ะ</h2>
+            <p>รหัสโต๊ะจะไม่ซ้ำภายในสาขา ระบบจะสร้าง QR ประจำรอบเมื่อลูกค้าเข้ามาใช้บริการ</p>
             <TableForm
               branches={organization.branches.map(({ id, name, code }) => ({ id, name, code }))}
               selectedBranchId={selectedBranch.id}

@@ -1,7 +1,5 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
-
 import { db } from "@/lib/db";
 import { consumeOrderIngredients } from "@/lib/inventory-service";
 import { enqueueOrderTickets } from "@/lib/print-service";
@@ -13,6 +11,7 @@ export type QrOrderInput = {
   branchCode: string;
   tableCode: string;
   qrSecret: string;
+  sessionNonce: string;
   idempotencyKey: string;
   items: Array<{
     menuItemId: string;
@@ -30,6 +29,7 @@ export type QrServiceRequestInput = {
   branchCode: string;
   tableCode: string;
   qrSecret: string;
+  sessionNonce: string;
   type: "STAFF_CALL" | "CHECK_BILL";
 };
 
@@ -48,6 +48,7 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
     !isSafeSegment(input.branchCode, 12) ||
     !isSafeSegment(input.tableCode, 12) ||
     !isSafeSegment(input.qrSecret, 128) ||
+    !isSafeSegment(input.sessionNonce, 128) ||
     !isSafeSegment(input.idempotencyKey, 100) ||
     input.items.length === 0 ||
     input.items.length > 30
@@ -68,6 +69,7 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
       code: input.tableCode.toUpperCase(),
       qrSecret: input.qrSecret,
       isActive: true,
+      sessions: { some: { accessNonce: input.sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } } },
       branch: {
         code: input.branchCode.toUpperCase(),
         organization: { slug: input.branchSlug.toLowerCase() },
@@ -79,7 +81,7 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
 
   const rateLimit = await consumeRateLimit({
     action: "qr-order",
-    resourceIdentity: rateLimitTable.id,
+    resourceIdentity: `${rateLimitTable.id}:${input.sessionNonce}`,
     requestIdentity: await getRequestIdentity(),
     limit: 15,
     windowMs: 5 * 60_000,
@@ -115,6 +117,12 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
 
         if (!table) return { error: "QR นี้ไม่พร้อมใช้งาน" };
 
+        const session = await tx.tableSession.findFirst({
+          where: { tableId: table.id, accessNonce: input.sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } },
+          select: { id: true },
+        });
+        if (!session) return { error: "QR รอบนี้ปิดแล้ว กรุณาขอ QR ใหม่จากพนักงาน" };
+
         const previousOrder = await tx.order.findUnique({
           where: { idempotencyKey: input.idempotencyKey },
           select: { orderNumber: true },
@@ -135,26 +143,6 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
         });
         if (menuItems.length !== requestedItems.size) {
           return { error: "มีเมนูบางรายการถูกปิดหรือไม่มีอยู่แล้ว กรุณาเลือกใหม่" };
-        }
-
-        let session = await tx.tableSession.findFirst({
-          where: {
-            tableId: table.id,
-            status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] },
-          },
-          orderBy: { openedAt: "desc" },
-          select: { id: true },
-        });
-
-        if (!session) {
-          session = await tx.tableSession.create({
-            data: {
-              branchId: table.branch.id,
-              tableId: table.id,
-              accessNonce: randomBytes(24).toString("base64url"),
-            },
-            select: { id: true },
-          });
         }
 
         const latestOrder = await tx.order.aggregate({
@@ -229,6 +217,7 @@ export async function requestQrService(input: QrServiceRequestInput): Promise<Qr
     !isSafeSegment(input.branchCode, 12) ||
     !isSafeSegment(input.tableCode, 12) ||
     !isSafeSegment(input.qrSecret, 128) ||
+    !isSafeSegment(input.sessionNonce, 128) ||
     !["STAFF_CALL", "CHECK_BILL"].includes(input.type)
   ) {
     return { error: "ข้อมูลคำขอไม่ถูกต้อง" };
@@ -239,6 +228,7 @@ export async function requestQrService(input: QrServiceRequestInput): Promise<Qr
       code: input.tableCode.toUpperCase(),
       qrSecret: input.qrSecret,
       isActive: true,
+      sessions: { some: { accessNonce: input.sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } } },
       branch: {
         code: input.branchCode.toUpperCase(),
         organization: { slug: input.branchSlug.toLowerCase() },
@@ -250,7 +240,7 @@ export async function requestQrService(input: QrServiceRequestInput): Promise<Qr
 
   const rateLimit = await consumeRateLimit({
     action: "qr-service",
-    resourceIdentity: rateLimitTable.id,
+    resourceIdentity: `${rateLimitTable.id}:${input.sessionNonce}`,
     requestIdentity: await getRequestIdentity(),
     limit: 8,
     windowMs: 60_000,
@@ -266,6 +256,7 @@ export async function requestQrService(input: QrServiceRequestInput): Promise<Qr
             code: input.tableCode.toUpperCase(),
             qrSecret: input.qrSecret,
             isActive: true,
+          sessions: { some: { accessNonce: input.sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } } },
             branch: {
               code: input.branchCode.toUpperCase(),
               organization: {
@@ -285,27 +276,15 @@ export async function requestQrService(input: QrServiceRequestInput): Promise<Qr
         });
         if (!table) return { error: "QR นี้ไม่พร้อมใช้งาน" };
 
-        let session = await tx.tableSession.findFirst({
+        const session = await tx.tableSession.findFirst({
           where: {
             tableId: table.id,
+            accessNonce: input.sessionNonce,
             status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] },
           },
-          orderBy: { openedAt: "desc" },
           select: { id: true, status: true },
         });
-        if (!session && input.type === "CHECK_BILL") {
-          return { error: "ยังไม่มีรายการอาหารสำหรับเช็กบิล" };
-        }
-        if (!session) {
-          session = await tx.tableSession.create({
-            data: {
-              branchId: table.branch.id,
-              tableId: table.id,
-              accessNonce: randomBytes(24).toString("base64url"),
-            },
-            select: { id: true, status: true },
-          });
-        }
+        if (!session) return { error: "QR รอบนี้ปิดแล้ว กรุณาขอ QR ใหม่จากพนักงาน" };
 
         if (input.type === "CHECK_BILL") {
           const orderCount = await tx.order.count({

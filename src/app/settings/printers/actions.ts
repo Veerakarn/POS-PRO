@@ -187,7 +187,7 @@ export async function createPrintRoute(_: PrinterActionState, formData: FormData
   const documentType = readText(formData, "documentType");
   const stationId = readText(formData, "stationId");
   const copies = Number(readText(formData, "copies"));
-  if (!branchId || !printerId || !["ORDER_TICKET", "RECEIPT"].includes(documentType) || !Number.isInteger(copies) || copies < 1 || copies > 5 || (documentType === "ORDER_TICKET" && !stationId) || (documentType === "RECEIPT" && stationId)) {
+  if (!branchId || !printerId || !["ORDER_TICKET", "RECEIPT", "TABLE_QR"].includes(documentType) || !Number.isInteger(copies) || copies < 1 || copies > 5 || (documentType === "ORDER_TICKET" && !stationId) || (documentType !== "ORDER_TICKET" && stationId)) {
     return { error: "ข้อมูลเส้นทางพิมพ์ไม่ถูกต้อง" };
   }
   const { user, branch } = await requireManagedBranch(branchId);
@@ -199,7 +199,7 @@ export async function createPrintRoute(_: PrinterActionState, formData: FormData
   if (!printer || (stationId && !station)) return { error: "เครื่องพิมพ์หรือจุดผลิตไม่ได้อยู่ในสาขานี้" };
   try {
     const route = await db.$transaction(async (tx) => {
-      const created = await tx.printRoutingRule.create({ data: { branchId, printerId, stationId: stationId || null, documentType: documentType as "ORDER_TICKET" | "RECEIPT", copies } });
+      const created = await tx.printRoutingRule.create({ data: { branchId, printerId, stationId: stationId || null, documentType: documentType as "ORDER_TICKET" | "RECEIPT" | "TABLE_QR", copies } });
       await tx.auditLog.create({ data: { organizationId: user.organizationId, branchId, actorId: user.id, action: "print_route.created", entityType: "PrintRoutingRule", entityId: created.id, after: { printerId, stationId: stationId || null, documentType, copies } } });
       return created;
     });

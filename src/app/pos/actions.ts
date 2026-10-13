@@ -1,19 +1,23 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
+import QRCode from "qrcode";
 
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { consumeOrderIngredients, restoreCancelledOrderItemIngredients } from "@/lib/inventory-service";
-import { enqueueOrderTickets } from "@/lib/print-service";
+import { enqueueOrderTickets, enqueueTableSessionQr } from "@/lib/print-service";
 import { applyBillDiscount, createBillFromSelections, redeemMemberPoints, SalesError, settleBillPayment, voidOpenBill } from "@/lib/sales-service";
 import { normalizeThaiPhone } from "@/lib/commerce-rules";
 
 export type CounterActionResult = {
   error?: string;
   success?: string;
+  warning?: string;
+  qrDataUrl?: string;
+  printQueued?: number;
 };
 
 export type CounterOrderInput = {
@@ -57,8 +61,31 @@ async function findCounterTable(input: CounterTableInput, organizationId: string
     select: {
       id: true,
       branchId: true,
+      code: true,
+      name: true,
+      qrSecret: true,
+      branch: {
+        select: {
+          code: true,
+          name: true,
+          organization: { select: { slug: true } },
+        },
+      },
     },
   });
+}
+
+function publicAppOrigin() {
+  const value = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return "";
+    if (process.env.NODE_ENV === "production" && (url.protocol !== "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) return "";
+    return url.origin;
+  } catch {
+    return "";
+  }
 }
 
 export async function openCounterTable(input: CounterTableInput): Promise<CounterActionResult> {
@@ -69,6 +96,12 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
   const user = await requirePermission("pos.use", input.branchId);
   const table = await findCounterTable(input, user.organizationId);
   if (!table) return { error: "ไม่พบโต๊ะที่เลือก" };
+  const accessNonce = randomBytes(24).toString("base64url");
+  const origin = publicAppOrigin();
+  const qrUrl = origin
+    ? `${origin}/q/${encodeURIComponent(table.branch.organization.slug)}/${encodeURIComponent(table.branch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}&s=${encodeURIComponent(accessNonce)}`
+    : "";
+  const qrDataUrl = qrUrl ? await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: "M", margin: 1, width: 300 }) : undefined;
 
   try {
     const result = await db.$transaction(
@@ -86,10 +119,18 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
           data: {
             branchId: table.branchId,
             tableId: table.id,
-            accessNonce: randomBytes(24).toString("base64url"),
+            accessNonce,
           },
           select: { id: true },
         });
+        const printQueued = qrUrl ? await enqueueTableSessionQr(tx, {
+          branchId: table.branchId,
+          sessionId: session.id,
+          tableName: table.name,
+          branchName: table.branch.name,
+          url: qrUrl,
+          createdAt: new Date(),
+        }) : 0;
         await tx.auditLog.create({
           data: {
             organizationId: user.organizationId,
@@ -101,12 +142,16 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
             after: { tableId: table.id },
           },
         });
-        return { success: "เปิดโต๊ะแล้ว" };
+        return { success: "เปิดโต๊ะแล้ว", printQueued };
       },
       { maxWait: 10_000, timeout: 15_000 },
     );
     if (result.success) refreshCounterPages(input.branchId);
-    return result;
+    return {
+      ...result,
+      ...(qrDataUrl ? { qrDataUrl } : {}),
+      ...(!qrUrl && result.success ? { warning: "เปิดโต๊ะแล้ว แต่ยังสร้าง QR ไม่ได้: ตรวจ NEXT_PUBLIC_APP_URL แล้ว deploy หรือรีสตาร์ตระบบ" } : {}),
+    };
   } catch (error) {
     const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
     if (code === "P2002") return { error: "โต๊ะนี้เปิดใช้งานอยู่แล้ว" };

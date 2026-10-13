@@ -23,6 +23,7 @@ export type OrderingContext = {
   branchSlug: string;
   branchCode: string;
   qrSecret: string;
+  sessionNonce: string;
 };
 
 function createIdempotencyKey() {

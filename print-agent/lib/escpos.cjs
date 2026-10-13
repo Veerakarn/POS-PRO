@@ -31,6 +31,21 @@ function money(satang) {
   return `${(Number(satang ?? 0) / 100).toFixed(2)} บาท`;
 }
 
+function qrCode(url) {
+  const value = Buffer.from(String(url ?? ""), "utf8");
+  if (!value.length || value.length > 2000) throw new Error("ลิงก์ QR ไม่ถูกต้องหรือยาวเกินไป");
+  const length = value.length + 3;
+  const size = Buffer.from([length & 0xff, (length >> 8) & 0xff]);
+  const command = (data) => Buffer.concat([GS, Buffer.from([0x28, 0x6b]), data]);
+  return Buffer.concat([
+    command(Buffer.from([4, 0, 49, 65, 50, 0])),
+    command(Buffer.from([3, 0, 49, 67, 6])),
+    command(Buffer.from([3, 0, 49, 69, 49])),
+    command(Buffer.concat([size, Buffer.from([49, 80, 48]), value])),
+    command(Buffer.from([3, 0, 49, 81, 48])),
+  ]);
+}
+
 function documentBuffers(document, printer) {
   if (!document || document.version !== 1 || typeof document.type !== "string") throw new Error("รูปแบบเอกสารไม่ถูกต้อง");
   const codePage = printer.codePage || "UTF-8";
@@ -71,6 +86,14 @@ function documentBuffers(document, printer) {
     chunks.push(Buffer.concat([ESC, Buffer.from("E"), Buffer.from([0])]));
     chunks.push(textLine(`ชำระ: ${(document.paymentMethods || []).join(", ")}`, codePage));
     for (const footer of document.footer || []) chunks.push(textLine(footer, codePage));
+  } else if (document.type === "TABLE_QR") {
+    chunks.push(textLine(`โต๊ะ ${document.tableName}`, codePage));
+    chunks.push(textLine("สแกนเพื่อสั่งอาหาร", codePage));
+    chunks.push(Buffer.concat([ESC, Buffer.from("a"), Buffer.from([1])]));
+    chunks.push(qrCode(document.url));
+    chunks.push(Buffer.concat([ESC, Buffer.from("a"), Buffer.from([0])]));
+    chunks.push(textLine("QR นี้ใช้ได้เฉพาะรอบโต๊ะนี้", codePage));
+    chunks.push(textLine("ขอบคุณค่ะ / ครับ", codePage));
   } else if (document.type === "TEST") {
     for (const line of document.lines || []) chunks.push(textLine(line.text || "", codePage));
   } else {

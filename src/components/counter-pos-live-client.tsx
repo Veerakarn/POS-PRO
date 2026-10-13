@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 import {
   openCounterTable,
@@ -57,6 +58,7 @@ export type CounterMenuItem = {
 
 type CartLine = CounterMenuItem & { quantity: number };
 type Feedback = { message: string; tone: "success" | "error" };
+type CounterActionResult = { error?: string; success?: string; warning?: string; qrDataUrl?: string; printQueued?: number };
 
 const statusClass: Record<CounterTableStatus, string> = {
   ว่าง: "available",
@@ -115,6 +117,7 @@ export function CounterPosLiveClient({
   const [category, setCategory] = useState("ทั้งหมด");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [sessionQr, setSessionQr] = useState<{ tableName: string; image: string; printQueued: number; warning?: string } | null>(null);
   const [orderIdempotencyKey, setOrderIdempotencyKey] = useState(createIdempotencyKey);
   const [isPending, startTransition] = useTransition();
 
@@ -161,7 +164,7 @@ export function CounterPosLiveClient({
     setFeedback(null);
   }
 
-  function run(action: () => Promise<{ error?: string; success?: string }>, onSuccess?: () => void) {
+  function run(action: () => Promise<CounterActionResult>, onSuccess?: (result: CounterActionResult) => void) {
     setFeedback(null);
     startTransition(async () => {
       try {
@@ -170,8 +173,8 @@ export function CounterPosLiveClient({
           setFeedback({ message: result.error, tone: "error" });
           return;
         }
-        setFeedback({ message: result.success ?? "บันทึกรายการแล้ว", tone: "success" });
-        onSuccess?.();
+        setFeedback({ message: result.warning ?? result.success ?? "บันทึกรายการแล้ว", tone: result.warning ? "error" : "success" });
+        onSuccess?.(result);
         router.refresh();
       } catch {
         setFeedback({ message: "บันทึกรายการไม่สำเร็จ กรุณาลองอีกครั้ง", tone: "error" });
@@ -180,7 +183,9 @@ export function CounterPosLiveClient({
   }
 
   function openTable(table: CounterTable) {
-    run(() => openCounterTable({ branchId, tableId: table.id }));
+    run(() => openCounterTable({ branchId, tableId: table.id }), (result) => {
+      if (result.qrDataUrl) setSessionQr({ tableName: table.name, image: result.qrDataUrl, printQueued: result.printQueued ?? 0, warning: result.warning });
+    });
   }
 
   function addItem(item: CounterMenuItem) {
@@ -216,6 +221,7 @@ export function CounterPosLiveClient({
 
   return (
     <main className="pos-page">
+      {sessionQr ? <div className="session-qr-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSessionQr(null); }}><section aria-labelledby="session-qr-title" aria-modal="true" className="session-qr-dialog" role="dialog"><button aria-label="ปิด QR" autoFocus className="session-qr-close" onClick={() => setSessionQr(null)} type="button">×</button><p className="eyebrow">QR ประจำรอบโต๊ะ</p><h2 id="session-qr-title">{sessionQr.tableName}</h2><Image alt={`QR รอบปัจจุบันของ ${sessionQr.tableName}`} height={260} src={sessionQr.image} unoptimized width={260} /><p>QR นี้ใช้ได้เฉพาะรอบที่เปิดอยู่ เมื่อปิดโต๊ะแล้ว QR นี้จะใช้ไม่ได้</p>{sessionQr.warning ? <p className="form-error">{sessionQr.warning}</p> : null}{sessionQr.printQueued ? <p className="form-success">ส่งงานพิมพ์แล้ว {sessionQr.printQueued} เครื่อง · กรุณารับ QR จากเครื่องพิมพ์</p> : <p className="configuration-notice">ยังไม่ได้ตั้งเส้นทางพิมพ์ QR · <a href="/settings/printers">ตั้งค่าเครื่องพิมพ์</a></p>}<button className="secondary-button" onClick={() => setSessionQr(null)} type="button">ปิด</button></section></div> : null}
       <header className="pos-header">
         <div>
           <p className="eyebrow">หน้าร้าน · {branchName}</p>

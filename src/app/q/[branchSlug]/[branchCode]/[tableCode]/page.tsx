@@ -12,17 +12,18 @@ export default async function LiveCustomerOrderingPage({
   searchParams,
 }: {
   params: Promise<{ branchSlug: string; branchCode: string; tableCode: string }>;
-  searchParams: Promise<{ k?: string }>;
+  searchParams: Promise<{ k?: string; s?: string }>;
 }) {
   await connection();
-  const [{ branchSlug, branchCode, tableCode }, { k: qrSecret }] = await Promise.all([params, searchParams]);
-  if (!qrSecret) notFound();
+  const [{ branchSlug, branchCode, tableCode }, { k: qrSecret, s: sessionNonce }] = await Promise.all([params, searchParams]);
+  if (!qrSecret || !sessionNonce) notFound();
 
   const table = await db.restaurantTable.findFirst({
     where: {
       code: tableCode.toUpperCase(),
       qrSecret,
       isActive: true,
+      sessions: { some: { accessNonce: sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } } },
       branch: {
         code: branchCode.toUpperCase(),
         organization: {
@@ -33,6 +34,11 @@ export default async function LiveCustomerOrderingPage({
     select: {
       name: true,
       code: true,
+      sessions: {
+        where: { accessNonce: sessionNonce, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } },
+        select: { id: true },
+        take: 1,
+      },
       branch: {
         select: {
           name: true,
@@ -84,6 +90,7 @@ export default async function LiveCustomerOrderingPage({
         branchSlug,
         branchCode,
         qrSecret,
+      sessionNonce,
       }}
     />
   );

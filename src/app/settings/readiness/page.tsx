@@ -63,6 +63,7 @@ export default async function ReadinessPage() {
         const offline = branch.printers.filter((printer) => !printer.printAgent?.isActive || !printer.printAgent.lastSeenAt || now.getTime() - printer.printAgent.lastSeenAt.getTime() > 90_000 || printer.printAgent.lastError);
         const missingStations = branch.stations.filter((station) => !branch.printRoutes.some((route) => route.documentType === "ORDER_TICKET" && route.stationId === station.id));
         const receipt = branch.printRoutes.some((route) => route.documentType === "RECEIPT");
+        const tableQr = branch.printRoutes.some((route) => route.documentType === "TABLE_QR");
         return <section className="branch-panel readiness-panel" key={branch.id}>
           <h2>{branch.name}</h2>
           <ul className="readiness-list">
@@ -71,6 +72,7 @@ export default async function ReadinessPage() {
             <Check ready={branch._count.paymentMethods > 0} title="ช่องทางรับเงิน" detail={`${branch._count.paymentMethods} ช่องทางที่พนักงานเลือกบันทึกรับชำระได้`} href={`/shifts${suffix}`} />
             <Check ready={!!branch.taxProfile} title="ข้อมูลภาษีร้าน" detail={branch.taxProfile ? `${branch.taxProfile.legalName} · ${branch.taxProfile.isVatRegistered ? "จดทะเบียน VAT" : "ยังไม่ระบุจดทะเบียน VAT"}` : "ยังไม่ได้บันทึกชื่อ ที่อยู่ และเลขผู้เสียภาษีของสาขา"} href="/settings/tax" />
             <Check ready={branch.printers.length > 0 && offline.length === 0} title="การเชื่อมต่อเครื่องพิมพ์" detail={offline.length ? `Agent ไม่ติดต่อภายใน 90 วินาทีหรือมีข้อผิดพลาด: ${offline.map((printer) => printer.name).join(", ")}` : `${branch.printers.length} เครื่อง · สถานะ Agent ไม่ใช่การยืนยันว่ามีกระดาษหรือพิมพ์สำเร็จ`} href={`/settings/printers${suffix}`} />
+            <Check ready={tableQr} title="QR พิมพ์เมื่อเปิดโต๊ะ" detail={tableQr ? "มีเส้นทาง QR ไปยังเครื่องพิมพ์แล้ว · ลองเปิดโต๊ะเพื่อยืนยันการพิมพ์จริง" : "ยังไม่ได้กำหนดเส้นทาง QR ไปยังเครื่องพิมพ์ความร้อน"} href={`/settings/printers${suffix}`} />
             <Check ready={receipt && branch.stations.length > 0 && missingStations.length === 0} title="เส้นทางใบเสร็จและใบครัว" detail={`${receipt ? "มี" : "ยังไม่มี"}เส้นทางใบเสร็จ · ${missingStations.length} จุดผลิตยังไม่มีเครื่องพิมพ์ที่ผูกกับ Agent`} href={`/settings/printers${suffix}`} />
             <Check ready={branch._count.printJobs === 0} title="งานพิมพ์ผิดพลาด" detail={`${branch._count.printJobs} งานที่ต้องตรวจสอบ`} href={`/settings/printers${suffix}`} />
           </ul>

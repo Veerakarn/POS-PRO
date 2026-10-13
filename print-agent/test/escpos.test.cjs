@@ -14,3 +14,9 @@ test("renders order ticket with item, note, copies and cut commands", () => {
 test("rejects unknown document formats", () => {
   assert.throws(() => renderEscPos({ version: 1, type: "UNKNOWN", copies: 1 }, { paperWidth: 58, codePage: "UTF-8" }), /ไม่รองรับ/);
 });
+
+test("renders a session QR with ESC/POS QR commands", () => {
+  const bytes = renderEscPos({ version: 1, type: "TABLE_QR", title: "QR โต๊ะ", branchName: "Branch", tableName: "A1", url: "https://example.com/q?session=abc", createdAt: "2026-10-14T00:00:00.000Z", copies: 1 }, { paperWidth: 58, codePage: "UTF-8" });
+  assert.match(bytes.toString("utf8"), /สแกนเพื่อสั่งอาหาร/);
+  assert.ok(bytes.includes(Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30])));
+});

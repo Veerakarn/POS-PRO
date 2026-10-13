@@ -32,6 +32,17 @@ export type ReceiptDocument = {
   footer: string[];
 };
 
+export type TableQrDocument = {
+  version: 1;
+  type: "TABLE_QR";
+  title: string;
+  branchName: string;
+  tableName: string;
+  url: string;
+  createdAt: string;
+  copies: number;
+};
+
 type TransactionClient = Prisma.TransactionClient;
 
 export async function enqueueOrderTickets(tx: TransactionClient, input: { branchId: string; orderId: string }) {
@@ -200,6 +211,48 @@ export async function enqueueReceipt(tx: TransactionClient, input: { branchId: s
         paymentMethods: bill.payments.map((payment) => payment.method),
         footer: ["ขอบคุณที่ใช้บริการ"],
       } satisfies ReceiptDocument,
+    })),
+    skipDuplicates: true,
+  });
+  return result.count;
+}
+
+export async function enqueueTableSessionQr(tx: TransactionClient, input: {
+  branchId: string;
+  sessionId: string;
+  tableName: string;
+  branchName: string;
+  url: string;
+  createdAt: Date;
+}) {
+  const routes = await tx.printRoutingRule.findMany({
+    where: {
+      branchId: input.branchId,
+      documentType: "TABLE_QR",
+      stationId: null,
+      isActive: true,
+      printer: { isActive: true },
+    },
+    select: { printerId: true, copies: true },
+  });
+  if (!routes.length) return 0;
+
+  const result = await tx.printJob.createMany({
+    data: routes.map((route) => ({
+      branchId: input.branchId,
+      printerId: route.printerId,
+      documentType: "TABLE_QR" as const,
+      idempotencyKey: `table-qr:${input.sessionId}:printer:${route.printerId}`,
+      document: {
+        version: 1,
+        type: "TABLE_QR",
+        title: "QR สั่งอาหารประจำโต๊ะ",
+        branchName: input.branchName,
+        tableName: input.tableName,
+        url: input.url,
+        createdAt: input.createdAt.toISOString(),
+        copies: route.copies,
+      } satisfies TableQrDocument,
     })),
     skipDuplicates: true,
   });

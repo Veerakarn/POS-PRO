@@ -27,12 +27,12 @@ Enable Neon point-in-time restore for the production project and keep the retent
 
 ## Print Agent
 
-The Windows Print Agent must run on a computer inside each branch network. Keep its token outside source control. After deployment, update its server URL to the production HTTPS origin, run a test print from `/settings/printers`, and verify both Windows/USB and network printers that the branch actually uses.
+The Windows Print Agent must run on a computer inside each branch network. Keep its token outside source control. After deployment, update its server URL to the production HTTPS origin, run a test print from `/settings/printers`, add a `QR สั่งอาหารประจำโต๊ะ` print route for the thermal printer, and open a test table to verify the session QR is readable. Verify both Windows/USB and network printers that the branch actually uses. Each table opening produces a new QR; discard the printout from the prior session.
 
 ## Release checklist
 
 1. Run `npm run check`, `npm run lint`, all database tests, and `npm run build`.
 2. Apply migrations with `npm run db:deploy`.
 3. Verify `/api/health` on the deployed URL.
-4. Complete one test sale: QR order, kitchen display, split/discount if used, payment, receipt, refund, and cash shift close.
+4. Open a table and verify its new session QR prints and scans; after closing the table, confirm that same QR can no longer place orders. Complete a test sale through kitchen display, split/discount if used, payment, receipt, refund, and cash shift close.
 5. Confirm the sale, stock movement, print job, and audit trail on their respective pages.

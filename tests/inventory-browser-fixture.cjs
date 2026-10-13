@@ -42,8 +42,10 @@ async function main() {
     await tx.menuItem.create({ data: { name: "ข้าวหมูทดสอบ", organizationId: created.id, categoryId: created.categories[0].id, priceSatang: 8000 } });
     return created;
   }, { timeout: 30000 });
+  const sessionNonce = randomBytes(24).toString("base64url");
+  await db.tableSession.create({ data: { branchId: org.branches[0].id, tableId: org.branches[0].tables[0].id, accessNonce: sessionNonce } });
   const fixture = { organizationId: org.id, slug, branchId: org.branches[0].id, email, pin,
-    qrUrl: `http://localhost:3000/q/${slug}/TEST/T1?k=${org.branches[0].tables[0].qrSecret}` };
+    qrUrl: `http://localhost:3000/q/${slug}/TEST/T1?k=${org.branches[0].tables[0].qrSecret}&s=${sessionNonce}` };
   fs.mkdirSync(path.dirname(fixturePath), { recursive: true });
   fs.writeFileSync(fixturePath, JSON.stringify(fixture));
   console.log(JSON.stringify(fixture));
