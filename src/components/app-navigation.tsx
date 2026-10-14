@@ -1,0 +1,69 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+
+type NavigationItem = {
+  href: string;
+  label: string;
+  group: string;
+};
+
+export function AppNavigation({
+  homeHref,
+  items,
+  organizationName,
+}: {
+  homeHref: string;
+  items: NavigationItem[];
+  organizationName: string;
+}) {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+  const groups = [...new Set(items.map((item) => item.group))];
+
+  return (
+    <aside className={`app-sidebar${isOpen ? " is-open" : ""}`}>
+      <div className="sidebar-heading">
+        <Link className="brand" href={homeHref} onClick={() => setIsOpen(false)}>
+          <span className="brand-mark">P</span>
+          <span>{organizationName}</span>
+        </Link>
+        <button
+          aria-controls="app-sidebar-nav"
+          aria-expanded={isOpen}
+          aria-label={isOpen ? "ปิดเมนู" : "เปิดเมนู"}
+          className="sidebar-toggle"
+          onClick={() => setIsOpen((open) => !open)}
+          type="button"
+        >
+          <span aria-hidden="true">☰</span> เมนู
+        </button>
+      </div>
+      <nav aria-label="เมนูหลัก" className="sidebar-nav" id="app-sidebar-nav">
+        {groups.map((group) => (
+          <div className="sidebar-group" key={group}>
+            <p className="sidebar-group-label">{group}</p>
+            {items.filter((item) => item.group === group).map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  aria-current={active ? "page" : undefined}
+                  className={active ? "sidebar-link active" : "sidebar-link"}
+                  href={item.href}
+                  key={item.href}
+                  onClick={() => setIsOpen(false)}
+                  prefetch={false}
+                >
+                  <span>{item.label}</span>
+                  <span aria-hidden="true" className="sidebar-chevron">›</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+    </aside>
+  );
+}

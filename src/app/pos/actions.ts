@@ -101,7 +101,6 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
   const qrUrl = origin
     ? `${origin}/q/${encodeURIComponent(table.branch.organization.slug)}/${encodeURIComponent(table.branch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}&s=${encodeURIComponent(accessNonce)}`
     : "";
-  const qrDataUrl = qrUrl ? await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: "M", margin: 1, width: 300 }) : undefined;
 
   try {
     const result = await db.$transaction(
@@ -123,14 +122,6 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
           },
           select: { id: true },
         });
-        const printQueued = qrUrl ? await enqueueTableSessionQr(tx, {
-          branchId: table.branchId,
-          sessionId: session.id,
-          tableName: table.name,
-          branchName: table.branch.name,
-          url: qrUrl,
-          createdAt: new Date(),
-        }) : 0;
         await tx.auditLog.create({
           data: {
             organizationId: user.organizationId,
@@ -142,15 +133,42 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
             after: { tableId: table.id },
           },
         });
-        return { success: "เปิดโต๊ะแล้ว", printQueued };
+        return { success: "เปิดโต๊ะแล้ว", sessionId: session.id };
       },
       { maxWait: 10_000, timeout: 15_000 },
     );
-    if (result.success) refreshCounterPages(input.branchId);
+    if ("error" in result) return result;
+    refreshCounterPages(input.branchId);
+
+    if (!qrUrl) return { success: result.success, warning: "เปิดโต๊ะแล้ว แต่ยังสร้าง QR ไม่ได้: ตรวจ NEXT_PUBLIC_APP_URL แล้ว deploy หรือรีสตาร์ตระบบ" };
+
+    let qrDataUrl: string | undefined;
+    let printQueued = 0;
+    const warnings: string[] = [];
+    try {
+      qrDataUrl = await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: "M", margin: 1, width: 300 });
+    } catch {
+      warnings.push("แสดงภาพ QR ไม่สำเร็จ");
+    }
+    try {
+      printQueued = await db.$transaction((tx) => enqueueTableSessionQr(tx, {
+        branchId: table.branchId,
+        sessionId: result.sessionId,
+        tableName: table.name,
+        branchName: table.branch.name,
+        url: qrUrl,
+        createdAt: new Date(),
+      }), { maxWait: 10_000, timeout: 15_000 });
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
+      console.error(`Failed to queue table QR (code ${code})`);
+      warnings.push("ส่งงานพิมพ์ QR ไม่สำเร็จ กรุณาตรวจหน้าเครื่องพิมพ์");
+    }
     return {
-      ...result,
+      success: result.success,
       ...(qrDataUrl ? { qrDataUrl } : {}),
-      ...(!qrUrl && result.success ? { warning: "เปิดโต๊ะแล้ว แต่ยังสร้าง QR ไม่ได้: ตรวจ NEXT_PUBLIC_APP_URL แล้ว deploy หรือรีสตาร์ตระบบ" } : {}),
+      printQueued,
+      ...(warnings.length ? { warning: `เปิดโต๊ะแล้ว แต่${warnings.join(" และ ")}` } : {}),
     };
   } catch (error) {
     const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
