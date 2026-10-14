@@ -113,10 +113,11 @@ export default async function DashboardPage() {
   return (
     <AppShell branchName={primaryBranch?.name} organizationName={organization.name} userName={user.displayName}>
       <main className="dashboard-page">
-        <header className="dashboard-header">
+        <header className="dashboard-header dashboard-hero">
           <div>
-            <p className="eyebrow">ภาพรวมองค์กร · เชื่อมต่อ Neon แล้ว</p>
+            <p className="eyebrow">ภาพรวมร้าน</p>
             <h1>สวัสดี, {user.displayName}</h1>
+            <p className="dashboard-intro">ติดตามยอดขาย โต๊ะ และความเคลื่อนไหวของร้านได้ในที่เดียว</p>
           </div>
           {userHasPermission(user.roleAssignments, "branch.manage") ? (
             <Link className="secondary-button" href="/settings/branches">จัดการสาขา</Link>

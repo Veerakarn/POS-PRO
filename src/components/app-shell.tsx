@@ -52,10 +52,14 @@ export async function AppShell({
       <AppNavigation homeHref={currentUser ? defaultLandingRoute(currentUser) : "/"} items={allowedNavigation} organizationName={organizationName} />
       <div className="app-shell-content">
         <header className="topbar">
-          <span className="branch-chip">สาขา · {branchName}</span>
+          <div className="topbar-context">
+            <span>พื้นที่ทำงาน</span>
+            <strong><span aria-hidden="true" className="topbar-status-dot" />สาขา {branchName}</strong>
+          </div>
           {resolvedUserName ? (
             <Link className="user-chip" href="/account/change-pin" title="เปลี่ยน PIN">
-              {resolvedUserName}
+              <span aria-hidden="true" className="user-avatar">{resolvedUserName.slice(0, 1)}</span>
+              <span>{resolvedUserName}</span>
             </Link>
           ) : null}
           {currentUser ? (

@@ -28,7 +28,7 @@ export function AppNavigation({
       <div className="sidebar-heading">
         <Link className="brand" href={homeHref} onClick={() => setIsOpen(false)}>
           <span className="brand-mark">P</span>
-          <span>{organizationName}</span>
+          <span className="brand-copy"><strong>{organizationName}</strong><small>POS WORKSPACE</small></span>
         </Link>
         <button
           aria-controls="app-sidebar-nav"
@@ -56,6 +56,7 @@ export function AppNavigation({
                   onClick={() => setIsOpen(false)}
                   prefetch={false}
                 >
+                  <span aria-hidden="true" className="sidebar-link-mark" />
                   <span>{item.label}</span>
                   <span aria-hidden="true" className="sidebar-chevron">›</span>
                 </Link>
@@ -64,6 +65,10 @@ export function AppNavigation({
           </div>
         ))}
       </nav>
+      <div className="sidebar-footer">
+        <span className="sidebar-footer-mark">P</span>
+        <span><strong>POS@PRO</strong><small>เครื่องมือจัดการร้านอาหาร</small></span>
+      </div>
     </aside>
   );
 }
