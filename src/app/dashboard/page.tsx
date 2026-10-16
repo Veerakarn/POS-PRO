@@ -16,11 +16,18 @@ function formatActivityTime(date: Date) {
   }).format(date);
 }
 
-function activityTitle(action: string, branchName: string | null) {
+function activityTitle(action: string, branchName: string | null, actorName: string | null) {
   if (action === "organization.initialized") return "สร้างร้านและสาขาแรกแล้ว";
   if (action === "branch.created") return `เพิ่มสาขา${branchName ? ` ${branchName}` : ""}`;
   const labels: Record<string, string> = {
     "auth.login_succeeded": "พนักงานเข้าสู่ระบบ",
+    "user.pin_changed": actorName ? `${actorName} เปลี่ยน PIN` : "มีการเปลี่ยน PIN",
+    "table.created": "เพิ่มโต๊ะใหม่",
+    "table.deactivated": "ปิดใช้งานโต๊ะ",
+    "table.restored": "กู้คืนโต๊ะ",
+    "menu_category.archived": "ปิดใช้งานหมวดหมู่",
+    "menu_category.restored": "กู้คืนหมวดหมู่",
+    "membership.settings_updated": "เปลี่ยนกติกาสะสมแต้ม",
     "cash_shift.opened": "เปิดกะเงินสด",
     "cash_shift.closed": "ปิดกะเงินสด",
     "table.opened_from_counter": "เปิดโต๊ะจาก Counter POS",
@@ -70,7 +77,7 @@ export default async function DashboardPage() {
       },
       select: { totalSatang: true, refunds: { where: { status: "SUCCEEDED" }, select: { amountSatang: true } } },
     }),
-    db.menuItem.count({ where: { organizationId: user.organizationId, isActive: true } }),
+    db.menuItem.count({ where: { organizationId: user.organizationId, isActive: true, category: { isActive: true } } }),
     db.auditLog.findMany({
       where: {
         organizationId: user.organizationId,
@@ -83,6 +90,7 @@ export default async function DashboardPage() {
         action: true,
         createdAt: true,
         branch: { select: { name: true } },
+        actor: { select: { displayName: true } },
       },
     }),
     db.serviceRequest.count({
@@ -104,10 +112,10 @@ export default async function DashboardPage() {
   const hasProduction = organization.branches.some((branch) => branch._count.stations > 0 && branch._count.printers > 0);
   const setupCompleted = [true, hasTables, hasMenu, hasProduction].filter(Boolean).length;
   const metrics = [
-    { label: "ยอดขายที่ชำระแล้ว", value: formatBaht(paidSalesTotal), change: "เฉพาะสาขาที่ได้รับสิทธิ์" },
-    { label: "สาขาที่ดูแล", value: String(organization.branches.length), change: scope.allBranches ? "ทุกสาขาในองค์กร" : "ตามสิทธิ์ที่ได้รับ" },
-    { label: "โต๊ะที่ตั้งค่าแล้ว", value: String(tableCount), change: "พร้อมเปิดใช้งาน Counter POS" },
-    { label: "คำขอจากโต๊ะ", value: String(pendingServiceRequests), change: "เรียกพนักงานและเช็กบิล" },
+    { label: "ยอดขายที่ชำระแล้ว", value: formatBaht(paidSalesTotal), change: "เฉพาะสาขาที่ได้รับสิทธิ์", href: userHasPermission(user.roleAssignments, "payment.manage") ? "/sales" : "/reports" },
+    { label: "สาขาที่ดูแล", value: String(organization.branches.length), change: scope.allBranches ? "ทุกสาขาในองค์กร" : "ตามสิทธิ์ที่ได้รับ", href: userHasPermission(user.roleAssignments, "branch.manage") ? "/settings/branches" : null },
+    { label: "โต๊ะที่ตั้งค่าแล้ว", value: String(tableCount), change: "พร้อมเปิดใช้งาน Counter POS", href: userHasPermission(user.roleAssignments, "table.manage") ? "/settings/tables" : userHasPermission(user.roleAssignments, "pos.use") ? "/pos" : null },
+    { label: "คำขอจากโต๊ะ", value: String(pendingServiceRequests), change: "เรียกพนักงานและเช็กบิล", href: userHasPermission(user.roleAssignments, "service.manage") ? "/requests" : null },
   ];
 
   return (
@@ -124,13 +132,14 @@ export default async function DashboardPage() {
           ) : null}
         </header>
         <section className="metric-grid">
-          {metrics.map((metric) => (
-            <article className="metric-card" key={metric.label}>
-              <p>{metric.label}</p>
-              <strong>{metric.value}</strong>
-              <span>{metric.change}</span>
-            </article>
-          ))}
+          {metrics.map((metric) => {
+            const content = <><p>{metric.label}</p><strong>{metric.value}</strong><span>{metric.change}</span></>;
+            return metric.href ? (
+              <Link className="metric-card metric-card-link" href={metric.href} key={metric.label}>{content}</Link>
+            ) : (
+              <article className="metric-card" key={metric.label}>{content}</article>
+            );
+          })}
         </section>
         <section className="dashboard-grid">
           <article className="dashboard-panel setup-progress-panel">
@@ -151,7 +160,7 @@ export default async function DashboardPage() {
               {activity.length ? activity.map((item) => (
                 <div className="activity-item" key={item.id}>
                   <span className="activity-dot success" />
-                  <div><strong>{activityTitle(item.action, item.branch?.name ?? null)}</strong><small>{formatActivityTime(item.createdAt)}</small></div>
+                  <div><strong>{activityTitle(item.action, item.branch?.name ?? null, item.actor?.displayName ?? null)}</strong><small>{formatActivityTime(item.createdAt)}</small></div>
                 </div>
               )) : <p className="empty-state">ยังไม่มีกิจกรรมในระบบ</p>}
             </div>

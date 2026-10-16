@@ -24,7 +24,7 @@ export default async function ChangePinPage() {
           <Link className="access-link" href={defaultLandingRoute(user)}>กลับหน้าทำงาน</Link>
         ) : null}
         <form action={logout}>
-          <button className="access-link link-button" type="submit">ออกจากบัญชีนี้</button>
+          <button className="access-link link-button access-logout" type="submit">ออกจากบัญชีนี้</button>
         </form>
       </section>
     </main>

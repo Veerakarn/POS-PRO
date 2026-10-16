@@ -107,7 +107,7 @@ export default async function CounterPosPage({
 
   const [menuItems, pendingServiceRequests] = await Promise.all([
     db.menuItem.findMany({
-      where: { organizationId: user.organizationId, isActive: true },
+      where: { organizationId: user.organizationId, isActive: true, category: { isActive: true } },
       orderBy: [{ category: { sortOrder: "asc" } }, { createdAt: "asc" }],
       select: {
         id: true,

@@ -26,7 +26,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
     db.ingredient.findMany({ where: { organizationId: user.organizationId }, include: { balances: { where: { branchId: branch.id } } }, orderBy: { name: "asc" } }),
     db.stockMovement.findMany({ where: { branchId: branch.id }, include: { ingredient: { select: { name: true, unit: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 30, skip: (page - 1) * 30 }),
     db.stockMovement.count({ where: { branchId: branch.id } }),
-    db.menuItem.count({ where: { organizationId: user.organizationId, isActive: true, recipeItems: { none: {} } } }),
+    db.menuItem.count({ where: { organizationId: user.organizationId, isActive: true, category: { isActive: true }, recipeItems: { none: {} } } }),
   ]);
   const active = ingredients.filter((item) => item.isActive);
   const visible = ingredients.filter((item) => (params.archived === "1" ? !item.isActive : item.isActive) && item.name.toLowerCase().includes((params.q ?? "").toLowerCase()));

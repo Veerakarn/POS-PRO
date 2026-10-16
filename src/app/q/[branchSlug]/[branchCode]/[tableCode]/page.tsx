@@ -46,7 +46,7 @@ export default async function LiveCustomerOrderingPage({
             select: {
               name: true,
               menuItems: {
-                where: { isActive: true },
+                where: { isActive: true, category: { isActive: true } },
                 orderBy: { createdAt: "asc" },
                 select: {
                   id: true,

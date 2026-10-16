@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { TableForm } from "@/components/table-form";
+import { TableDeleteButton } from "@/components/table-delete-button";
 import { AppShell } from "@/components/app-shell";
 import { getPermissionScope, requirePermission } from "@/lib/auth";
 import { userHasPermission } from "@/lib/authorization";
@@ -36,6 +37,7 @@ export default async function TablesPage({
               name: true,
               code: true,
               capacity: true,
+              isActive: true,
             },
           },
         },
@@ -74,9 +76,9 @@ export default async function TablesPage({
         <section className="branch-layout table-management-layout">
           <article className="branch-panel">
             <div className="panel-heading">
-              <div><p className="eyebrow">โต๊ะในสาขา</p><h2>{selectedBranch.tables.length} โต๊ะ</h2></div>
+              <div><p className="eyebrow">โต๊ะในสาขา</p><h2>{selectedBranch.tables.filter((table) => table.isActive).length} โต๊ะที่ใช้งาน</h2></div>
             </div>
-            {selectedBranch.tables.length ? <div className="table-list">{selectedBranch.tables.map((table) => <article className="printer-route-card" key={table.id}><div><strong>{table.name}</strong><span>{table.code} · {table.capacity} ที่นั่ง</span></div></article>)}</div> : <p className="empty-state">ยังไม่มีโต๊ะในสาขานี้ เพิ่มโต๊ะจากฟอร์มด้านขวาได้เลย</p>}
+            {selectedBranch.tables.length ? <div className="table-list">{selectedBranch.tables.map((table) => <article className={table.isActive ? "printer-route-card table-management-item" : "printer-route-card table-management-item is-inactive"} key={table.id}><div><strong>{table.name}</strong><span>{table.code} · {table.capacity} ที่นั่ง{table.isActive ? "" : " · ปิดใช้งาน"}</span></div><TableDeleteButton isActive={table.isActive} tableId={table.id} tableName={table.name} /></article>)}</div> : <p className="empty-state">ยังไม่มีโต๊ะในสาขานี้ เพิ่มโต๊ะจากฟอร์มด้านขวาได้เลย</p>}
             <p className="configuration-notice">เปิดโต๊ะที่หน้า <Link href="/pos">Counter POS</Link> เพื่อสร้าง QR ใหม่และส่งพิมพ์อัตโนมัติ</p>
           </article>
           <aside className="branch-create-card">

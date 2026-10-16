@@ -3,6 +3,7 @@ import { connection } from "next/server";
 
 import { CategoryForm, MenuItemForm } from "@/components/menu-forms";
 import { MenuItemEditor } from "@/components/menu-item-editor";
+import { CategoryDeleteButton } from "@/components/category-delete-button";
 import { AppShell } from "@/components/app-shell";
 import { requireOrganizationPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -25,11 +26,12 @@ export default async function MenuPage() {
         select: {
           id: true,
           name: true,
+          isActive: true,
           _count: { select: { menuItems: { where: { isActive: true } } } },
         },
       },
       menuItems: {
-        where: { isActive: true },
+        where: { isActive: true, category: { isActive: true } },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -53,15 +55,18 @@ export default async function MenuPage() {
           <div>
             <p className="eyebrow">Back Office · เมนูกลาง</p>
             <h1>หมวดหมู่และเมนู</h1>
-            <p className="page-description">เมนูชุดเดียวใช้ได้ทุกสาขา แล้วกำหนดจุดครัวหรือบาร์รายสาขาในขั้นตอนถัดไป</p>
+            <p className="page-description">เมนูชุดเดียวใช้ได้ทุกสาขา แล้วกำหนดจุดครัวหรือบาร์รายสาขาในขั้นตอนถัดไป หมวดหมู่ที่ลบสามารถกู้คืนได้</p>
           </div>
         </header>
         <section className="menu-admin-grid">
           <article className="branch-panel">
-            <div className="panel-heading"><div><p className="eyebrow">หมวดหมู่</p><h2>{organization.categories.length} หมวด</h2></div></div>
+            <div className="panel-heading"><div><p className="eyebrow">หมวดหมู่</p><h2>{organization.categories.filter((category) => category.isActive).length} หมวดที่ใช้งาน</h2></div></div>
             <div className="category-summary-list">
               {organization.categories.length ? organization.categories.map((category) => (
-                <div className="category-summary" key={category.id}><strong>{category.name}</strong><span>{category._count.menuItems} เมนู</span></div>
+                <div className={category.isActive ? "category-summary" : "category-summary is-inactive"} key={category.id}>
+                  <div><strong>{category.name}</strong><span>{category._count.menuItems} เมนู{category.isActive ? "" : " · ปิดใช้งาน"}</span></div>
+                  <CategoryDeleteButton categoryId={category.id} categoryName={category.name} isActive={category.isActive} />
+                </div>
               )) : <p className="empty-state">ยังไม่มีหมวดหมู่ เริ่มเพิ่มหมวดแรกได้ด้านล่าง</p>}
             </div>
             <CategoryForm />
@@ -70,7 +75,7 @@ export default async function MenuPage() {
             <p className="eyebrow">เพิ่มเมนู</p>
             <h2>รายการอาหารใหม่</h2>
             <p>ราคาเก็บเป็นสตางค์เพื่อคำนวณบิลได้แม่นยำ และจะแสดงใน QR Ordering เมื่อเปิดใช้งาน</p>
-            <MenuItemForm categories={organization.categories.map(({ id, name }) => ({ id, name }))} />
+            <MenuItemForm categories={organization.categories.filter((category) => category.isActive).map(({ id, name }) => ({ id, name }))} />
           </aside>
         </section>
         <section className="menu-admin-list">
@@ -86,7 +91,7 @@ export default async function MenuPage() {
                 <div><span>{item.category.name}</span><h3>{item.name}</h3><p>{item.description || "ไม่มีคำอธิบาย"}</p></div>
                 <footer><small>{item.sku || "ไม่มี SKU"}</small><strong>{formatBaht(item.priceSatang)}</strong></footer>
                 <MenuItemEditor
-                  categories={organization.categories.map(({ id, name }) => ({ id, name }))}
+                  categories={organization.categories.filter((category) => category.isActive).map(({ id, name }) => ({ id, name }))}
                   item={item}
                 />
               </article>

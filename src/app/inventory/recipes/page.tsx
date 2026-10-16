@@ -17,7 +17,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   const [organization, branches, menus] = await Promise.all([
     db.organization.findUnique({ where: { id: user.organizationId }, select: { name: true } }),
     db.branch.findMany({ where: { organizationId: user.organizationId, ...(!scope.canManageShared ? { id: { in: scope.branchIds } } : {}) }, orderBy: { createdAt: "asc" } }),
-    db.menuItem.findMany({ where: { organizationId: user.organizationId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, priceSatang: true, recipeVersion: true, recipeItems: true } }),
+    db.menuItem.findMany({ where: { organizationId: user.organizationId, isActive: true, category: { isActive: true } }, orderBy: { name: "asc" }, select: { id: true, name: true, priceSatang: true, recipeVersion: true, recipeItems: true } }),
   ]);
   if (!organization) redirect("/setup");
   const branch = branches.find((item) => item.id === params.branch) ?? branches[0];

@@ -78,7 +78,7 @@ export async function routeMenuItemToStation(_: StationState, formData: FormData
       select: { id: true, branchId: true, name: true },
     }),
     db.menuItem.findFirst({
-      where: { id: menuItemId, organizationId: user.organizationId, isActive: true },
+      where: { id: menuItemId, organizationId: user.organizationId, isActive: true, category: { isActive: true } },
       select: { id: true, name: true },
     }),
   ]);

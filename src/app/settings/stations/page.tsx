@@ -47,7 +47,7 @@ export default async function StationsPage({
         },
       },
       menuItems: {
-        where: { isActive: true },
+        where: { isActive: true, category: { isActive: true } },
         orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
         select: { id: true, name: true, category: { select: { name: true } } },
       },

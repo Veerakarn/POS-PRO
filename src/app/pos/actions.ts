@@ -315,6 +315,7 @@ export async function submitCounterOrder(input: CounterOrderInput): Promise<Coun
             organizationId: user.organizationId,
             id: { in: [...requestedItems.keys()] },
             isActive: true,
+            category: { isActive: true },
           },
           select: {
             id: true,

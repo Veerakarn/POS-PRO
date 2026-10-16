@@ -69,6 +69,46 @@ export async function createMenuCategory(_: MenuState, formData: FormData): Prom
   }
 }
 
+export async function setMenuCategoryActive(_: MenuState, formData: FormData): Promise<MenuState> {
+  const user = await requireOrganizationPermission("menu.manage");
+  const categoryId = readText(formData, "categoryId");
+  const isActiveValue = readText(formData, "isActive");
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(categoryId) || !["true", "false"].includes(isActiveValue)) {
+    return { error: "เลือกหมวดหมู่ที่ต้องการเปลี่ยนสถานะไม่ถูกต้อง" };
+  }
+
+  const isActive = isActiveValue === "true";
+  try {
+    const result: MenuState = await db.$transaction(async (tx): Promise<MenuState> => {
+      const category = await tx.menuCategory.findFirst({
+        where: { id: categoryId, organizationId: user.organizationId },
+        select: { id: true, name: true, isActive: true },
+      });
+      if (!category) return { error: "ไม่พบหมวดหมู่นี้ในร้าน" };
+      if (category.isActive === isActive) return { success: isActive ? "หมวดหมู่นี้เปิดใช้งานอยู่แล้ว" : "หมวดหมู่นี้ถูกปิดใช้งานแล้ว" };
+
+      await tx.menuCategory.update({ where: { id: category.id }, data: { isActive } });
+      await tx.auditLog.create({
+        data: {
+          organizationId: user.organizationId,
+          actorId: user.id,
+          action: isActive ? "menu_category.restored" : "menu_category.archived",
+          entityType: "MenuCategory",
+          entityId: category.id,
+          before: { name: category.name, isActive: category.isActive },
+          after: { name: category.name, isActive },
+        },
+      });
+
+      return { success: isActive ? `กู้คืนหมวดหมู่ ${category.name} แล้ว` : `ลบหมวดหมู่ ${category.name} ออกจากการใช้งานแล้ว` };
+    });
+    if (result.success) refreshMenuPages();
+    return result;
+  } catch {
+    return { error: isActive ? "กู้คืนหมวดหมู่ไม่สำเร็จ กรุณาลองอีกครั้ง" : "ลบหมวดหมู่ไม่สำเร็จ กรุณาลองอีกครั้ง" };
+  }
+}
+
 export async function createMenuItem(_: MenuState, formData: FormData): Promise<MenuState> {
   const user = await requireOrganizationPermission("menu.manage");
   const categoryId = readText(formData, "categoryId");

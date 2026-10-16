@@ -58,10 +58,41 @@ export async function saveMembershipSettings(_: CommerceState, data: FormData): 
   const points = Number(text(data, "pointsPerInterval"));
   const cap = Number(text(data, "redemptionCapPercent"));
   if (!Number.isInteger(earnEveryBaht) || earnEveryBaht < 1 || earnEveryBaht > 100_000 || !Number.isInteger(points) || points < 1 || points > 100_000 || !Number.isInteger(cap) || cap < 1 || cap > 100) return { error: "ตรวจค่าการสะสมและเพดานแลกแต้มอีกครั้ง" };
-  await db.membershipSettings.upsert({ where: { organizationId: user.organizationId }, create: { organizationId: user.organizationId, pointsPerHundredSatang: earnEveryBaht * 100, pointsPerHundredBaht: points, redemptionCapPercent: cap }, update: { pointsPerHundredSatang: earnEveryBaht * 100, pointsPerHundredBaht: points, redemptionCapPercent: cap } });
-  revalidatePath("/settings/members");
-  revalidatePath("/pos");
-  return { success: `ตั้งค่าสะสม ${points} แต้มต่อ ${earnEveryBaht} บาทแล้ว` };
+  try {
+    await db.$transaction(async (tx) => {
+      const previous = await tx.membershipSettings.findUnique({
+        where: { organizationId: user.organizationId },
+        select: { pointsPerHundredSatang: true, pointsPerHundredBaht: true, redemptionCapPercent: true },
+      });
+      await tx.membershipSettings.upsert({
+        where: { organizationId: user.organizationId },
+        create: { organizationId: user.organizationId, pointsPerHundredSatang: earnEveryBaht * 100, pointsPerHundredBaht: points, redemptionCapPercent: cap },
+        update: { pointsPerHundredSatang: earnEveryBaht * 100, pointsPerHundredBaht: points, redemptionCapPercent: cap },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId: user.organizationId,
+          actorId: user.id,
+          action: "membership.settings_updated",
+          entityType: "MembershipSettings",
+          entityId: user.organizationId,
+          ...(previous ? { before: {
+            earnEveryBaht: Math.round(previous.pointsPerHundredSatang / 100),
+            pointsPerInterval: previous.pointsPerHundredBaht,
+            redemptionCapPercent: previous.redemptionCapPercent,
+          } } : {}),
+          after: { earnEveryBaht, pointsPerInterval: points, redemptionCapPercent: cap },
+        },
+      });
+    });
+    revalidatePath("/settings/members");
+    revalidatePath("/pos");
+    revalidatePath("/audit");
+    revalidatePath("/dashboard");
+    return { success: `ตั้งค่าสะสม ${points} แต้มต่อ ${earnEveryBaht} บาทแล้ว` };
+  } catch {
+    return { error: "บันทึกกติกาสะสมแต้มไม่สำเร็จ กรุณาลองอีกครั้ง" };
+  }
 }
 
 export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<CommerceState> {

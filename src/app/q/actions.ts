@@ -134,6 +134,7 @@ export async function submitQrOrder(input: QrOrderInput): Promise<QrOrderResult>
             organizationId: table.branch.organizationId,
             id: { in: [...requestedItems.keys()] },
             isActive: true,
+            category: { isActive: true },
           },
           select: {
             id: true,

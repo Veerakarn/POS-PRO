@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import { MenuImageFields } from "@/components/menu-image-fields";
 
 import {
@@ -39,11 +39,17 @@ export function MenuItemEditor({
   );
   const [archiveState, archiveAction, isArchiving] = useActionState(archiveMenuItem, initialState);
 
+  function confirmArchive(event: FormEvent<HTMLFormElement>) {
+    if (!window.confirm(`ยืนยันลบเมนู “${item.name}” ออกจากรายการขายใช่หรือไม่? เมนูจะไม่แสดงให้สั่ง แต่ประวัติเดิมยังคงอยู่`)) {
+      event.preventDefault();
+    }
+  }
+
   if (!isEditing) {
     return (
       <div className="menu-card-actions">
         <button className="secondary-button compact" onClick={() => setIsEditing(true)} type="button">แก้ไข</button>
-        <form action={archiveAction}>
+        <form action={archiveAction} onSubmit={confirmArchive}>
           <input name="menuItemId" type="hidden" value={item.id} />
           <button className="danger-button compact" disabled={isArchiving} type="submit">{isArchiving ? "กำลังลบ…" : "ลบ"}</button>
         </form>

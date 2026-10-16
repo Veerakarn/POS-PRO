@@ -130,7 +130,7 @@ export async function saveRecipe(_: InventoryState, form: FormData): Promise<Inv
     if (!Number.isInteger(version) || version < 0 || ids.length > 50 || ids.length !== amounts.length || new Set(ids).size !== ids.length) throw new InventoryError("สูตรมีวัตถุดิบซ้ำหรือจำนวนไม่ถูกต้อง (สูงสุด 50 รายการ)");
     const lines = ids.map((ingredientId, index) => ({ ingredientId, quantity: parseQuantity(amounts[index]) }));
     await db.$transaction(async (tx) => {
-      const menu = await tx.menuItem.findFirst({ where: { id: menuItemId, organizationId: user.organizationId, isActive: true }, include: { recipeItems: true } });
+      const menu = await tx.menuItem.findFirst({ where: { id: menuItemId, organizationId: user.organizationId, isActive: true, category: { isActive: true } }, include: { recipeItems: true } });
       if (!menu) throw new InventoryError("ไม่พบเมนูนี้");
       if (menu.recipeVersion !== version) throw new InventoryError("สูตรถูกแก้ไขไปแล้ว กรุณาโหลดหน้าใหม่ก่อนบันทึก");
       const ingredients = await tx.ingredient.count({ where: { id: { in: ids }, organizationId: user.organizationId, isActive: true } });
