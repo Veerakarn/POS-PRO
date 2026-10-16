@@ -3,10 +3,12 @@ import { connection } from "next/server";
 
 import { redirectAuthenticatedUser } from "@/app/auth-actions";
 import { AccessForm } from "@/components/access-form";
+import { getAccessSetupStatus } from "@/lib/access-setup";
 
 export default async function LoginPage() {
   await connection();
   await redirectAuthenticatedUser();
+  const setupStatus = await getAccessSetupStatus();
 
   return (
     <main className="access-page login-page">
@@ -28,7 +30,10 @@ export default async function LoginPage() {
           <h1>เข้าสู่ระบบร้าน</h1>
           <p>ใช้อีเมลและ PIN ของคุณเพื่อเข้าถึงหน้าจอตามสิทธิ์ที่ได้รับ</p>
           <AccessForm mode="login" />
-          <Link className="access-link" href="/access/claim">เพิ่งตั้งค่าร้านครั้งแรก? เปิดใช้บัญชีเจ้าของ</Link>
+          <Link className="access-link" href="/register">ยังไม่มีบัญชี? สร้างบัญชีและร้านใหม่</Link>
+          {setupStatus === "claim" ? (
+            <Link className="access-link" href="/access/claim">เพิ่งตั้งค่าร้านครั้งแรก? เปิดใช้บัญชีเจ้าของ</Link>
+          ) : null}
         </section>
       </div>
     </main>

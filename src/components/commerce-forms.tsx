@@ -38,10 +38,10 @@ export function TaxProfileForm({ branchId, defaults }: { branchId: string; defau
   const [state, action, pending] = useActionState(saveTaxProfile, {});
   return <form action={action} className="stacked-form">
     <input name="branchId" type="hidden" value={branchId} />
-    <label><span>ชื่อผู้ประกอบการ/ร้าน</span><input name="legalName" defaultValue={defaults?.legalName} maxLength={200} required /></label>
+    <label><span>ชื่อผู้ประกอบการ/ร้าน</span><input autoComplete="organization" name="legalName" defaultValue={defaults?.legalName} maxLength={200} required type="text" /><small>กรอกได้ทั้งตัวอักษรและตัวเลข</small></label>
     <label><span>เลขประจำตัวผู้เสียภาษี 13 หลัก</span><input name="taxpayerId" defaultValue={defaults?.taxpayerId} inputMode="numeric" maxLength={13} required /></label>
-    <label><span>ที่อยู่ตามทะเบียน</span><textarea name="address" defaultValue={defaults?.address} maxLength={500} required rows={3} /></label>
-    <label><span>รหัสสาขา (สำนักงานใหญ่ 00000)</span><input name="branchNumber" defaultValue={defaults?.branchNumber ?? "00000"} pattern="\d{5}" required /></label>
+    <label><span>ที่อยู่ตามทะเบียน</span><textarea autoComplete="street-address" inputMode="text" name="address" defaultValue={defaults?.address} maxLength={500} required rows={3} /><small>กรอกได้ทั้งตัวอักษรและตัวเลข</small></label>
+    <label><span>รหัสสาขา (สำนักงานใหญ่ 00000)</span><input autoComplete="off" inputMode="numeric" maxLength={5} name="branchNumber" defaultValue={defaults?.branchNumber ?? "00000"} pattern="[0-9]{5}" required title="กรอกรหัสสาขาเป็นตัวเลข 5 หลัก" type="text" /></label>
     <label><span>คำนำหน้าเลขที่เอกสาร</span><input name="documentPrefix" defaultValue={defaults?.documentPrefix ?? "TAX"} maxLength={10} pattern="[A-Za-z0-9-]+" required /></label>
     <label><span>อัตรา VAT (%)</span><input name="vatRate" defaultValue={defaults?.vatRatePercent ?? 7} type="number" min="0" max="20" step="0.01" required /></label>
     <label className="checkbox-row"><input name="isVatRegistered" type="checkbox" defaultChecked={defaults?.isVatRegistered} /><span>สาขานี้จดทะเบียนภาษีมูลค่าเพิ่ม (VAT)</span></label>

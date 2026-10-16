@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import {
+  getCounterTableQr,
   openCounterTable,
+  reprintCounterTableQr,
   submitCounterOrder,
 } from "@/app/pos/actions";
 import { CounterBillingControls } from "@/components/counter-billing-controls";
@@ -18,6 +20,7 @@ export type CounterTable = {
   name: string;
   capacity: number;
   status: CounterTableStatus;
+  sessionId: string | null;
   totalSatang: number;
   updatedAtLabel: string | null;
   hasOpenSession: boolean;
@@ -58,7 +61,7 @@ export type CounterMenuItem = {
 
 type CartLine = CounterMenuItem & { quantity: number };
 type Feedback = { message: string; tone: "success" | "error" };
-type CounterActionResult = { error?: string; success?: string; warning?: string; qrDataUrl?: string; printQueued?: number };
+type CounterActionResult = { error?: string; success?: string; warning?: string; qrDataUrl?: string; printQueued?: number; sessionId?: string };
 
 const statusClass: Record<CounterTableStatus, string> = {
   ว่าง: "available",
@@ -117,9 +120,13 @@ export function CounterPosLiveClient({
   const [category, setCategory] = useState("ทั้งหมด");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [sessionQr, setSessionQr] = useState<{ tableName: string; image: string; printQueued: number; warning?: string } | null>(null);
+  const [sessionQr, setSessionQr] = useState<{ sessionId: string; tableId: string; tableName: string; image: string; printQueued?: number; warning?: string } | null>(null);
+  const [qrBySession, setQrBySession] = useState<Record<string, { image?: string; error?: string }>>({});
+  const [qrPrintFeedback, setQrPrintFeedback] = useState<{ sessionId: string; message: string; tone: "success" | "error" } | null>(null);
   const [orderIdempotencyKey, setOrderIdempotencyKey] = useState(createIdempotencyKey);
   const [isPending, startTransition] = useTransition();
+  const [isQrPending, startQrTransition] = useTransition();
+  const [isQrPrinting, startQrPrintTransition] = useTransition();
 
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? tables[0];
   const visibleTables = useMemo(
@@ -132,6 +139,28 @@ export function CounterPosLiveClient({
   );
   const visibleMenuItems = menuItems.filter((item) => category === "ทั้งหมด" || item.category === category);
   const cartTotal = cart.reduce((total, item) => total + item.priceSatang * item.quantity, 0);
+  const selectedSessionId = selectedTable?.sessionId ?? null;
+  const selectedTableForQr = selectedTable?.id ?? null;
+  const selectedQr = selectedSessionId ? qrBySession[selectedSessionId] : null;
+  const selectedQrImage = selectedQr?.image;
+
+  const loadQr = useCallback((tableId: string, sessionId: string) => {
+    startQrTransition(async () => {
+      try {
+        const result = await getCounterTableQr({ branchId, tableId, sessionId });
+        setQrBySession((current) => ({
+          ...current,
+          [sessionId]: result.qrDataUrl ? { image: result.qrDataUrl } : { error: result.error ?? "แสดง QR ไม่สำเร็จ" },
+        }));
+      } catch {
+        setQrBySession((current) => ({ ...current, [sessionId]: { error: "โหลด QR ไม่สำเร็จ กรุณาลองอีกครั้ง" } }));
+      }
+    });
+  }, [branchId]);
+
+  useEffect(() => {
+    if (selectedTableForQr && selectedSessionId) loadQr(selectedTableForQr, selectedSessionId);
+  }, [loadQr, selectedTableForQr, selectedSessionId]);
 
   useEffect(() => {
     const refreshWhenVisible = () => {
@@ -162,6 +191,7 @@ export function CounterPosLiveClient({
     setCart([]);
     setIsMenuOpen(false);
     setFeedback(null);
+    setQrPrintFeedback(null);
   }
 
   function run(action: () => Promise<CounterActionResult>, onSuccess?: (result: CounterActionResult) => void) {
@@ -184,8 +214,59 @@ export function CounterPosLiveClient({
 
   function openTable(table: CounterTable) {
     run(() => openCounterTable({ branchId, tableId: table.id }), (result) => {
-      if (result.qrDataUrl) setSessionQr({ tableName: table.name, image: result.qrDataUrl, printQueued: result.printQueued ?? 0, warning: result.warning });
+      if (result.qrDataUrl && result.sessionId) showQr(result.sessionId, table.id, table.name, result.qrDataUrl, result.printQueued ?? 0, result.warning);
     });
+  }
+
+  function showQr(sessionId: string, tableId: string, tableName: string, image: string, printQueued?: number, warning?: string) {
+    setQrPrintFeedback(null);
+    setSessionQr({ sessionId, tableId, tableName, image, printQueued, warning });
+  }
+
+  function printQr(tableId: string, sessionId: string) {
+    setQrPrintFeedback(null);
+    startQrPrintTransition(async () => {
+      try {
+        const result = await reprintCounterTableQr({ branchId, tableId, sessionId });
+        setQrPrintFeedback({ sessionId, message: result.error ?? result.success ?? "ส่งงานพิมพ์แล้ว", tone: result.error ? "error" : "success" });
+      } catch {
+        setQrPrintFeedback({ sessionId, message: "ส่งพิมพ์ QR ไม่สำเร็จ กรุณาลองอีกครั้ง", tone: "error" });
+      }
+    });
+  }
+
+  function printQrFromBrowser(tableName: string, image: string, sessionId: string) {
+    const printWindow = window.open("", "_blank", "width=420,height=650");
+    if (!printWindow) {
+      setQrPrintFeedback({ sessionId, message: "เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัปแล้วลองอีกครั้ง", tone: "error" });
+      return;
+    }
+    printWindow.opener = null;
+    const document = printWindow.document;
+    document.title = `QR ${tableName}`;
+    const charset = document.createElement("meta");
+    charset.setAttribute("charset", "utf-8");
+    document.head.append(charset);
+    const style = document.createElement("style");
+    style.textContent = "@page{size:80mm 110mm;margin:4mm}body{margin:0;color:#17251c;font-family:Arial,Tahoma,sans-serif;text-align:center}main{width:72mm;max-width:100%;margin:0 auto}h1{margin:0 0 4mm;font-size:16px}h2{margin:0 0 3mm;font-size:20px}p{margin:2mm 0;font-size:11px;line-height:1.5}img{display:block;width:58mm;height:58mm;max-width:100%;margin:0 auto;image-rendering:pixelated}button{margin-top:8mm;padding:10px 16px;border:1px solid #777;border-radius:6px;background:white;font:inherit}@media print{button{display:none}}";
+    document.head.append(style);
+    const main = document.createElement("main");
+    const title = document.createElement("h1");
+    title.textContent = branchName;
+    const table = document.createElement("h2");
+    table.textContent = tableName;
+    const description = document.createElement("p");
+    description.textContent = "สแกน QR เพื่อสั่งอาหาร · ใช้ได้เฉพาะรอบโต๊ะนี้";
+    const qr = document.createElement("img");
+    qr.alt = `QR สั่งอาหารของ ${tableName}`;
+    qr.onload = () => { printWindow.focus(); printWindow.print(); };
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "พิมพ์อีกครั้ง";
+    retry.onclick = () => printWindow.print();
+    main.append(title, table, qr, description, retry);
+    document.body.replaceChildren(main);
+    qr.src = image;
   }
 
   function addItem(item: CounterMenuItem) {
@@ -221,7 +302,37 @@ export function CounterPosLiveClient({
 
   return (
     <main className="pos-page">
-      {sessionQr ? <div className="session-qr-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSessionQr(null); }}><section aria-labelledby="session-qr-title" aria-modal="true" className="session-qr-dialog" role="dialog"><button aria-label="ปิด QR" autoFocus className="session-qr-close" onClick={() => setSessionQr(null)} type="button">×</button><p className="eyebrow">QR ประจำรอบโต๊ะ</p><h2 id="session-qr-title">{sessionQr.tableName}</h2><Image alt={`QR รอบปัจจุบันของ ${sessionQr.tableName}`} height={260} src={sessionQr.image} unoptimized width={260} /><p>QR นี้ใช้ได้เฉพาะรอบที่เปิดอยู่ เมื่อปิดโต๊ะแล้ว QR นี้จะใช้ไม่ได้</p>{sessionQr.warning ? <p className="form-error">{sessionQr.warning}</p> : null}{sessionQr.printQueued ? <p className="form-success">ส่งงานพิมพ์แล้ว {sessionQr.printQueued} เครื่อง · กรุณารับ QR จากเครื่องพิมพ์</p> : <p className="configuration-notice">ยังไม่ได้ตั้งเส้นทางพิมพ์ QR · <a href="/settings/printers">ตั้งค่าเครื่องพิมพ์</a></p>}<button className="secondary-button" onClick={() => setSessionQr(null)} type="button">ปิด</button></section></div> : null}
+      {sessionQr ? (
+        <div className="session-qr-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSessionQr(null);
+        }}>
+          <section aria-labelledby="session-qr-title" aria-modal="true" className="session-qr-dialog" role="dialog">
+            <button aria-label="ปิด QR" autoFocus className="session-qr-close" onClick={() => setSessionQr(null)} type="button">×</button>
+            <p className="eyebrow">QR ประจำรอบโต๊ะ</p>
+            <h2 id="session-qr-title">{sessionQr.tableName}</h2>
+            <Image alt={`QR รอบปัจจุบันของ ${sessionQr.tableName}`} height={260} src={sessionQr.image} unoptimized width={260} />
+            <p>QR นี้ใช้ได้เฉพาะรอบที่เปิดอยู่ เมื่อปิดโต๊ะแล้ว QR นี้จะใช้ไม่ได้</p>
+            {sessionQr.warning ? <p className="form-error">{sessionQr.warning}</p> : null}
+            {sessionQr.printQueued === undefined ? null : sessionQr.printQueued ? (
+              <p className="form-success">ส่งงานพิมพ์แล้ว {sessionQr.printQueued} เครื่อง · กรุณารับ QR จากเครื่องพิมพ์</p>
+            ) : !sessionQr.warning ? (
+              <p className="configuration-notice">ยังไม่ได้ตั้งเส้นทางพิมพ์ QR · <a href="/settings/printers">ตั้งค่าเครื่องพิมพ์</a></p>
+            ) : null}
+            {qrPrintFeedback?.sessionId === sessionQr.sessionId ? (
+              <p className={qrPrintFeedback.tone === "error" ? "form-error" : "form-success"} role="status">{qrPrintFeedback.message}</p>
+            ) : null}
+            <div className="session-qr-dialog-actions">
+              <button className="primary-button" onClick={() => printQrFromBrowser(sessionQr.tableName, sessionQr.image, sessionQr.sessionId)} type="button">
+                พิมพ์จากเครื่องนี้
+              </button>
+              <button className="secondary-button" disabled={isQrPrinting} onClick={() => printQr(sessionQr.tableId, sessionQr.sessionId)} type="button">
+                {isQrPrinting ? "กำลังส่งพิมพ์…" : "ส่งพิมพ์เครื่องร้าน"}
+              </button>
+              <button className="secondary-button" onClick={() => setSessionQr(null)} type="button">ปิด</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <header className="pos-header">
         <div>
           <p className="eyebrow">หน้าร้าน · {branchName}</p>
@@ -299,6 +410,37 @@ export function CounterPosLiveClient({
             </div>
           ) : (
             <>
+              <section aria-label={`QR ของ ${selectedTable.name}`} className="counter-active-qr">
+                <div className="counter-active-qr-heading">
+                  <div><p className="eyebrow">QR ประจำรอบโต๊ะ</p><h3>{selectedTable.name}</h3></div>
+                  <span>ใช้ได้จนกว่าจะปิดโต๊ะ</span>
+                </div>
+                {selectedQrImage ? (
+                  <div className="counter-active-qr-content">
+                    <button aria-label={`ขยาย QR ของ ${selectedTable.name}`} className="counter-active-qr-image" onClick={() => { if (selectedSessionId) showQr(selectedSessionId, selectedTable.id, selectedTable.name, selectedQrImage); }} type="button">
+                      <Image alt={`QR รอบปัจจุบันของ ${selectedTable.name}`} height={148} src={selectedQrImage} unoptimized width={148} />
+                    </button>
+                    <div className="counter-active-qr-details">
+                      <p>ให้ลูกค้าสแกน QR นี้เพื่อสั่งอาหาร เป็นรหัสของรอบโต๊ะปัจจุบัน</p>
+                      <button className="secondary-button" onClick={() => { if (selectedSessionId) showQr(selectedSessionId, selectedTable.id, selectedTable.name, selectedQrImage); }} type="button">ขยาย QR</button>
+                      <button className="primary-button" disabled={!selectedSessionId} onClick={() => { if (selectedSessionId) printQrFromBrowser(selectedTable.name, selectedQrImage, selectedSessionId); }} type="button">
+                        พิมพ์ QR
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="counter-active-qr-empty">
+                    <p>{selectedQr?.error ?? (isQrPending ? "กำลังโหลด QR ของรอบโต๊ะ…" : "กำลังเตรียม QR ของรอบโต๊ะ…")}</p>
+                    {selectedQr?.error && selectedSessionId ? (
+                      <button className="secondary-button" disabled={isQrPending} onClick={() => loadQr(selectedTable.id, selectedSessionId)} type="button">ลองโหลด QR อีกครั้ง</button>
+                    ) : null}
+                    <button className="primary-button" disabled={!selectedSessionId || isQrPrinting} onClick={() => { if (selectedSessionId) printQr(selectedTable.id, selectedSessionId); }} type="button">
+                      {isQrPrinting ? "กำลังส่งพิมพ์…" : "ส่งพิมพ์เครื่องร้าน"}
+                    </button>
+                  </div>
+                )}
+                {qrPrintFeedback?.sessionId === selectedSessionId ? <p className={`pos-feedback ${qrPrintFeedback.tone}`} role="status">{qrPrintFeedback.message}</p> : null}
+              </section>
               {selectedTable.orderLines.length ? (
                 <div className="order-lines">
                   {selectedTable.orderLines.map((item) => (

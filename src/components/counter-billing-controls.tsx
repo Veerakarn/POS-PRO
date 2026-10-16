@@ -34,6 +34,33 @@ function createIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function paymentMethodLabel(method: CounterPaymentOption) {
+  switch (method.code) {
+    case "CARD": return "บัตรเครดิต/เดบิต";
+    case "QR_PAYMENT":
+    case "BANK_TRANSFER": return "โอนเงิน";
+    default: return method.name;
+  }
+}
+
+function paymentMethodOptions(methods: CounterPaymentOption[]) {
+  let hasTransferOption = false;
+  return methods.filter((method) => {
+    if (method.code !== "QR_PAYMENT" && method.code !== "BANK_TRANSFER") return true;
+    if (hasTransferOption) return false;
+    hasTransferOption = true;
+    return true;
+  });
+}
+
+function paymentMethodHint(method: CounterPaymentOption | undefined) {
+  switch (method?.code) {
+    case "QR_PAYMENT":
+    case "BANK_TRANSFER": return "ใช้รับเงินที่ลูกค้าโอนผ่าน QR หรือเข้าบัญชีร้าน";
+    default: return null;
+  }
+}
+
 export function CounterBillingControls({
   branchId,
   table,
@@ -66,13 +93,14 @@ export function CounterBillingControls({
   const vacantTargets = tables.filter((candidate) => candidate.id !== table.id && !candidate.hasOpenSession);
   const activeTargets = tables.filter((candidate) => candidate.id !== table.id && candidate.hasOpenSession);
 
-  function run(action: () => Promise<CounterActionResult>, onSuccess?: () => void) {
+  function run(action: () => Promise<CounterActionResult>, onSuccess?: () => void, refreshOnError = false) {
     setFeedback(null);
     startTransition(async () => {
       try {
         const result = await action();
         if (result.error) {
           setFeedback({ message: result.error, tone: "error" });
+          if (refreshOnError) router.refresh();
           return;
         }
         setFeedback({ message: result.success ?? "บันทึกรายการแล้ว", tone: "success" });
@@ -246,7 +274,7 @@ function BillCard({
   paymentMethods: CounterPaymentOption[];
   hasOpenCashShift: boolean;
   isPending: boolean;
-  run: (action: () => Promise<CounterActionResult>, onSuccess?: () => void) => void;
+  run: (action: () => Promise<CounterActionResult>, onSuccess?: () => void, refreshOnError?: boolean) => void;
 }) {
   const [discountKind, setDiscountKind] = useState<"FIXED" | "PERCENT">("FIXED");
   const [discountValue, setDiscountValue] = useState("");
@@ -259,7 +287,10 @@ function BillCard({
   const [paymentKey, setPaymentKey] = useState(createIdempotencyKey);
   const [voidReason, setVoidReason] = useState("");
   const remaining = Math.max(0, bill.totalSatang - bill.paidSatang);
+  const paymentAmountSatang = Math.round(Number(paymentAmount) * 100);
   const selectedPaymentMethod = paymentMethods.find((method) => method.code === paymentMethod);
+  const paymentOptions = paymentMethodOptions(paymentMethods);
+  const selectedPaymentHint = paymentMethodHint(selectedPaymentMethod);
   const statusText: Record<string, string> = { OPEN: "รอชำระ", PARTIALLY_PAID: "ชำระบางส่วน", PAID: "ชำระแล้ว", REFUNDED: "คืนเงินแล้ว" };
 
   function submitDiscount() {
@@ -276,7 +307,7 @@ function BillCard({
   }
 
   function submitPayment() {
-    const amountSatang = Math.round(Number(paymentAmount) * 100);
+    const amountSatang = paymentAmountSatang;
     if (!Number.isInteger(amountSatang) || amountSatang < 1 || !paymentMethod) return;
     run(
       () => receiveCounterPayment({ branchId, billId: bill.id, method: paymentMethod, amountSatang, idempotencyKey: paymentKey }),
@@ -284,6 +315,7 @@ function BillCard({
         setPaymentKey(createIdempotencyKey());
         setPaymentAmount((Math.max(0, remaining - amountSatang) / 100).toFixed(2));
       },
+      true,
     );
   }
 
@@ -325,10 +357,11 @@ function BillCard({
             <button className="secondary-button" disabled={isPending || !discountValue || discountReason.trim().length < 3} onClick={submitDiscount} type="button">ใช้ส่วนลด</button>
           </details>
           <div className="bill-action-form payment-form">
-            <label><span>ช่องทาง</span><select onChange={(event) => setPaymentMethod(event.target.value)} value={paymentMethod}>{paymentMethods.map((method) => <option key={method.code} value={method.code}>{method.name}</option>)}</select></label>
+            <label><span>ช่องทาง</span><select onChange={(event) => setPaymentMethod(event.target.value)} value={paymentMethod}>{paymentOptions.map((method) => <option key={method.code} value={method.code}>{paymentMethodLabel(method)}</option>)}</select></label>
+            {selectedPaymentHint ? <small className="payment-method-hint">{selectedPaymentHint}</small> : null}
             <label><span>รับชำระ (บาท)</span><input max={(remaining / 100).toFixed(2)} min="0.01" onChange={(event) => setPaymentAmount(event.target.value)} step="0.01" type="number" value={paymentAmount} /></label>
             {selectedPaymentMethod?.isCash && !hasOpenCashShift ? <small className="cash-shift-warning">ต้องเปิดกะเงินสดก่อนรับช่องทางนี้</small> : null}
-            <button className="primary-button" disabled={isPending || remaining < 1 || !paymentMethod || (Boolean(selectedPaymentMethod?.isCash) && !hasOpenCashShift)} onClick={submitPayment} type="button">รับชำระ</button>
+            <button className="primary-button" disabled={isPending || remaining < 1 || !Number.isInteger(paymentAmountSatang) || paymentAmountSatang < 1 || paymentAmountSatang > remaining || !paymentMethod || (Boolean(selectedPaymentMethod?.isCash) && !hasOpenCashShift)} onClick={submitPayment} type="button">รับชำระ</button>
           </div>
         </div>
       ) : null}

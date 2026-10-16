@@ -154,6 +154,7 @@ export default async function CounterPosPage({
       name: table.name,
       capacity: table.capacity,
       status,
+      sessionId: session?.id ?? null,
       totalSatang: orderLines.reduce((total, item) => total + item.priceSatang * item.quantity, 0),
       updatedAtLabel: latestUpdate ? formatUpdatedAt(latestUpdate) : null,
       hasOpenSession: Boolean(session),

@@ -154,7 +154,9 @@ export async function settleBillPayment(tx: TransactionClient, input: {
   if (!method) throw new SalesError("วิธีชำระเงินนี้ถูกปิดใช้งานแล้ว");
   const paid = bill.payments.reduce((sum, payment) => sum + payment.amountSatang, 0);
   const remaining = bill.totalSatang - paid;
-  if (!Number.isInteger(input.amountSatang) || input.amountSatang < 1 || input.amountSatang > remaining) throw new SalesError(`ยอดรับชำระต้องไม่เกิน ${remaining} สตางค์`);
+  if (!Number.isInteger(input.amountSatang) || input.amountSatang < 1 || input.amountSatang > remaining) {
+    throw new SalesError(`ยอดรับชำระเกินยอดคงเหลือ ${(Math.max(0, remaining) / 100).toFixed(2)} บาท กรุณาตรวจสอบยอดแล้วลองอีกครั้ง`);
+  }
   const shift = method.isCash
     ? await tx.cashShift.findFirst({ where: { branchId: input.branchId, userId: input.userId, status: "OPEN" }, select: { id: true } })
     : null;

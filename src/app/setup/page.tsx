@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
+import { redirectAuthenticatedUser } from "@/app/auth-actions";
 import { InitialSetupForm } from "@/components/initial-setup-form";
-import { db } from "@/lib/db";
+import { getAccessSetupStatus } from "@/lib/access-setup";
 
 export default async function SetupPage() {
   await connection();
+  await redirectAuthenticatedUser();
 
-  const organization = await db.organization.findFirst({ select: { id: true } });
-  if (organization) redirect("/dashboard");
+  const setupStatus = await getAccessSetupStatus();
+  if (setupStatus !== "setup") redirect(setupStatus === "claim" ? "/access/claim" : "/register");
 
   return (
     <main className="setup-page">
@@ -29,6 +32,7 @@ export default async function SetupPage() {
           <p>คุณแก้ไขและเพิ่มสาขาได้ภายหลังจากหน้า Back Office</p>
         </div>
         <InitialSetupForm requiresSetupToken={process.env.NODE_ENV === "production"} />
+        <Link className="access-link" href="/login">กลับไปเข้าสู่ระบบ</Link>
       </section>
     </main>
   );

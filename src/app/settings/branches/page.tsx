@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { BranchForm } from "@/components/branch-form";
+import { BranchDeleteButton } from "@/components/branch-delete-button";
 import { AppShell } from "@/components/app-shell";
 import { requireOrganizationPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -59,10 +60,15 @@ export default async function BranchesPage() {
                     <strong>{branch.name}</strong>
                     <p>{branch.code} · {branch.timezone} · {branch.currency}</p>
                   </div>
-                  <div className="branch-counts" aria-label={`สถานะ ${branch.name}`}>
-                    <span>{branch._count.tables} โต๊ะ</span>
-                    <span>{branch._count.stations} จุดผลิต</span>
-                    <span>{branch._count.printers} เครื่องพิมพ์</span>
+                  <div className="branch-item-actions">
+                    <div className="branch-counts" aria-label={`สถานะ ${branch.name}`}>
+                      <span>{branch._count.tables} โต๊ะ</span>
+                      <span>{branch._count.stations} จุดผลิต</span>
+                      <span>{branch._count.printers} เครื่องพิมพ์</span>
+                    </div>
+                    {organization.branches.length > 1
+                      ? <BranchDeleteButton branchId={branch.id} branchName={branch.name} />
+                      : <small className="branch-delete-message">ต้องมีอย่างน้อย 1 สาขา</small>}
                   </div>
                 </article>
               ))}

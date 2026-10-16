@@ -75,8 +75,11 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const rate = number(data, "vatRate");
   const registered = data.get("isVatRegistered") === "on";
   const included = data.get("taxIncluded") === "on";
-  if (legalName.length < 2 || legalName.length > 200 || address.length < 5 || address.length > 500 || !isThaiTaxId(taxpayerId)) return { error: "ชื่อ ที่อยู่ และเลขประจำตัวผู้เสียภาษี 13 หลักต้องถูกต้อง" };
-  if (!/^(00000|\d{5})$/.test(branchNumber) || !/^[A-Z0-9-]{1,10}$/.test(prefix) || !Number.isFinite(rate) || rate < 0 || rate > 20) return { error: "ตรวจรหัสสาขา คำนำหน้าเอกสาร และอัตราภาษี" };
+  if (legalName.length < 2 || legalName.length > 200) return { error: "ชื่อผู้ประกอบการต้องมี 2–200 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
+  if (address.length < 5 || address.length > 500) return { error: "ที่อยู่ต้องมี 5–500 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
+  if (!isThaiTaxId(taxpayerId)) return { error: "เลขประจำตัวผู้เสียภาษีต้องเป็นเลข 13 หลักที่ถูกต้อง" };
+  if (!/^\d{5}$/.test(branchNumber)) return { error: "รหัสสาขาต้องเป็นตัวเลข 5 หลัก เช่น 00000" };
+  if (!/^[A-Z0-9-]{1,10}$/.test(prefix) || !Number.isFinite(rate) || rate < 0 || rate > 20) return { error: "ตรวจคำนำหน้าเอกสารและอัตราภาษีอีกครั้ง" };
   try {
     await db.taxProfile.upsert({
       where: { branchId },

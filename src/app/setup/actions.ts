@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import { hashPin, startSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { permissionCatalog } from "@/lib/permissions";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { getRequestIdentity } from "@/lib/request-identity";
+import { redirectAuthenticatedUser } from "@/app/auth-actions";
 
 export type SetupState = {
   error?: string;
@@ -21,6 +24,18 @@ export async function createInitialOrganization(
   _: SetupState,
   formData: FormData,
 ): Promise<SetupState> {
+  return createOrganization(formData, true);
+}
+
+export async function registerOrganization(
+  _: SetupState,
+  formData: FormData,
+): Promise<SetupState> {
+  await redirectAuthenticatedUser();
+  return createOrganization(formData, false);
+}
+
+async function createOrganization(formData: FormData, initialSetup: boolean): Promise<SetupState> {
   const organizationName = readText(formData, "organizationName");
   const organizationSlug = readText(formData, "organizationSlug").toLowerCase();
   const branchName = readText(formData, "branchName");
@@ -33,8 +48,12 @@ export async function createInitialOrganization(
 
   if (
     !organizationName ||
+    organizationName.length > 120 ||
     !branchName ||
+    branchName.length > 100 ||
     !ownerName ||
+    ownerName.length > 100 ||
+    ownerEmail.length > 254 ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ||
     !/^\d{6}$/.test(ownerPin) ||
     ownerPin !== ownerPinConfirmation
@@ -42,7 +61,7 @@ export async function createInitialOrganization(
     return { error: "กรุณากรอกข้อมูลให้ครบ และตั้ง PIN เจ้าของเป็นตัวเลข 6 หลักให้ตรงกัน" };
   }
 
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(organizationSlug)) {
+  if (organizationSlug.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(organizationSlug)) {
     return { error: "รหัสองค์กรใช้ตัวพิมพ์เล็ก ตัวเลข และขีดกลางเท่านั้น" };
   }
 
@@ -51,22 +70,38 @@ export async function createInitialOrganization(
   }
 
   const expectedToken = process.env.INITIAL_SETUP_TOKEN;
-  if (process.env.NODE_ENV === "production" && (!expectedToken || setupToken !== expectedToken)) {
+  if (initialSetup && process.env.NODE_ENV === "production" && (!expectedToken || setupToken !== expectedToken)) {
     return { error: "รหัสตั้งค่าครั้งแรกไม่ถูกต้อง" };
   }
-
-  const organizationCount = await db.organization.count();
-  if (organizationCount > 0) {
-    return { error: "ระบบได้รับการตั้งค่าแล้ว โปรดเข้าสู่ระบบด้วยบัญชีเจ้าของร้าน" };
-  }
-
-  const ownerPinHash = await hashPin(ownerPin);
 
   let ownerId: string;
 
   try {
-    ownerId = await db.$transaction(
+    const requestIdentity = await getRequestIdentity();
+    const rateLimit = await consumeRateLimit({
+      action: "owner-registration",
+      resourceIdentity: requestIdentity ? "all-owners" : ownerEmail,
+      requestIdentity,
+      limit: 5,
+      windowMs: 15 * 60_000,
+      blockMs: 15 * 60_000,
+    });
+    if (!rateLimit.allowed) {
+      return { error: "มีการสมัครบ่อยเกินไป กรุณารอ 15 นาทีแล้วลองใหม่" };
+    }
+
+    const ownerPinHash = await hashPin(ownerPin);
+    const result = await db.$transaction(
       async (tx) => {
+        if (initialSetup && await tx.organization.count() > 0) {
+          return { error: "ระบบได้รับการตั้งค่าแล้ว หากต้องการร้านใหม่ กรุณาไปที่หน้าสร้างบัญชีและร้านใหม่" };
+        }
+        const existingUser = await tx.user.findFirst({
+          where: { email: { equals: ownerEmail, mode: "insensitive" } },
+          select: { id: true },
+        });
+        if (existingUser) return { error: "อีเมลนี้มีบัญชีในระบบแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น" };
+
         const organization = await tx.organization.create({
           data: {
             name: organizationName,
@@ -123,23 +158,28 @@ export async function createInitialOrganization(
           },
         });
 
-        return owner.id;
+        return { ownerId: owner.id };
       },
       {
         maxWait: 10_000,
         timeout: 15_000,
+        isolationLevel: "Serializable",
       },
     );
+    if ("error" in result) return { error: result.error };
+    ownerId = result.ownerId;
   } catch (error) {
     const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
     if (code === "P2002") {
       return { error: "รหัสองค์กร รหัสสาขา หรืออีเมลนี้ถูกใช้งานแล้ว" };
     }
+    if (code === "P2034") return { error: "มีการสมัครพร้อมกัน กรุณาลองอีกครั้ง" };
     return { error: "สร้างข้อมูลเริ่มต้นไม่สำเร็จ กรุณาลองอีกครั้ง" };
   }
 
   await startSession(ownerId);
   revalidatePath("/");
   revalidatePath("/dashboard");
+  revalidatePath("/login");
   redirect("/dashboard");
 }

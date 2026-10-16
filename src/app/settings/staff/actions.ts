@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { hashPin, requireOrganizationPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  normalizePermissions,
-  organizationPermissionKeys,
-} from "@/lib/permissions";
+import { normalizePermissions } from "@/lib/permissions";
 
 export type StaffActionState = {
   error?: string;
@@ -25,12 +22,6 @@ function readScopeBranchId(formData: FormData) {
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function roleNeedsGlobalScope(permissions: unknown) {
-  return Array.isArray(permissions) && permissions.some(
-    (permission) => typeof permission === "string" && organizationPermissionKeys.has(permission),
-  );
 }
 
 function mutationError(error: unknown, duplicateMessage: string) {
@@ -65,7 +56,7 @@ export async function createStaff(
   const [role, branch, duplicateEmail] = await Promise.all([
     db.role.findFirst({
       where: { id: roleId, organizationId: actor.organizationId, isActive: true, isSystem: false },
-      select: { id: true, name: true, permissions: true },
+      select: { id: true, name: true },
     }),
     branchId
       ? db.branch.findFirst({
@@ -78,9 +69,6 @@ export async function createStaff(
 
   if (!role) return { error: "ไม่พบบทบาทที่เปิดใช้งาน กรุณาสร้างหรือเลือกบทบาทใหม่" };
   if (branchId && !branch) return { error: "ไม่พบสาขาที่เลือก" };
-  if (branchId && roleNeedsGlobalScope(role.permissions)) {
-    return { error: "บทบาทที่จัดการข้อมูลองค์กรต้องกำหนดขอบเขตเป็นทุกสาขา" };
-  }
   if (duplicateEmail) return { error: "อีเมลนี้มีบัญชีในระบบแล้ว" };
 
   const pinHash = await hashPin(pin);
@@ -301,7 +289,7 @@ export async function addRoleAssignment(
     }),
     db.role.findFirst({
       where: { id: roleId, organizationId: actor.organizationId, isActive: true, isSystem: false },
-      select: { id: true, name: true, permissions: true },
+      select: { id: true, name: true },
     }),
     branchId
       ? db.branch.findFirst({
@@ -313,9 +301,6 @@ export async function addRoleAssignment(
   if (!target || !role) return { error: "ไม่พบบัญชีหรือบทบาทที่เลือก" };
   if (target.roleAssignments.length) return { error: "ไม่แก้บทบาทของบัญชีเจ้าของระบบ" };
   if (branchId && !branch) return { error: "ไม่พบสาขาที่เลือก" };
-  if (branchId && roleNeedsGlobalScope(role.permissions)) {
-    return { error: "บทบาทที่จัดการข้อมูลองค์กรต้องกำหนดขอบเขตเป็นทุกสาขา" };
-  }
 
   try {
     await db.$transaction(
@@ -463,14 +448,10 @@ export async function updateRole(
       description: true,
       permissions: true,
       isSystem: true,
-      roleAssignments: { where: { branchId: { not: null } }, take: 1, select: { id: true } },
     },
   });
   if (!role) return { error: "ไม่พบบทบาท" };
   if (role.isSystem) return { error: "บทบาทเจ้าของระบบแก้ไขไม่ได้" };
-  if (roleNeedsGlobalScope(permissions) && role.roleAssignments.length) {
-    return { error: "บทบาทนี้ยังถูกกำหนดแบบรายสาขา จึงเพิ่มสิทธิ์ระดับองค์กรไม่ได้" };
-  }
 
   try {
     await db.$transaction(

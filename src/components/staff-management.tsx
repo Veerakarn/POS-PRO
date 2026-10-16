@@ -72,14 +72,14 @@ function Feedback({ state }: { state: StaffActionState }) {
 function ScopeFields({
   branches,
   idPrefix,
-  organizationOnly = false,
+  containsOrganizationPermissions = false,
 }: {
   branches: BranchOption[];
   idPrefix: string;
-  organizationOnly?: boolean;
+  containsOrganizationPermissions?: boolean;
 }) {
   const [scope, setScope] = useState<"organization" | "branch">(
-    branches.length && !organizationOnly ? "branch" : "organization",
+    branches.length && !containsOrganizationPermissions ? "branch" : "organization",
   );
 
   return (
@@ -89,7 +89,7 @@ function ScopeFields({
         <label htmlFor={`${idPrefix}-scope-branch`}>
           <input
             checked={scope === "branch"}
-            disabled={!branches.length || organizationOnly}
+            disabled={!branches.length}
             id={`${idPrefix}-scope-branch`}
             name="scope"
             onChange={() => setScope("branch")}
@@ -122,12 +122,12 @@ function ScopeFields({
       ) : (
         <input name="branchId" type="hidden" value="" />
       )}
-      {organizationOnly ? <small className="staff-scope-note">บทบาทนี้มีสิทธิ์จัดการข้อมูลกลาง จึงต้องกำหนดเป็นทุกสาขา</small> : null}
+      {containsOrganizationPermissions ? <small className="staff-scope-note">หากเลือกเฉพาะสาขา สิทธิ์ข้อมูลกลางในบทบาทนี้จะไม่มีผลกับพนักงาน</small> : null}
     </fieldset>
   );
 }
 
-function roleRequiresOrganizationScope(role: RoleOption | undefined) {
+function roleContainsOrganizationPermissions(role: RoleOption | undefined) {
   if (!role) return false;
   return role.permissions.some((key) =>
     permissionCatalog.some((permission) => permission.key === key && permission.scope === "organization"),
@@ -199,7 +199,7 @@ function CreateStaffForm({ branches, roles }: { branches: BranchOption[]; roles:
         <label htmlFor="new-staff-pin-confirmation"><span>ยืนยัน PIN</span><input autoComplete="new-password" id="new-staff-pin-confirmation" inputMode="numeric" maxLength={6} name="pinConfirmation" pattern="[0-9]{6}" required type="password" /></label>
       </div>
       <label htmlFor="new-staff-role"><span>บทบาทแรก</span><select disabled={!activeRoles.length} id="new-staff-role" name="roleId" onChange={(event) => setRoleId(event.target.value)} required value={selectedRole?.id ?? ""}>{activeRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-      <ScopeFields branches={branches} idPrefix="new-staff" key={selectedRole?.id ?? "no-role"} organizationOnly={roleRequiresOrganizationScope(selectedRole)} />
+      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix="new-staff" key={selectedRole?.id ?? "no-role"} />
       {!activeRoles.length ? <p className="staff-inline-note">เพิ่มหรือเปิดใช้งานบทบาทก่อนสร้างบัญชีพนักงาน</p> : null}
       <Feedback state={state} />
       <button className="primary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังเพิ่มพนักงาน…" : "เพิ่มพนักงาน"}</button>
@@ -259,7 +259,7 @@ function AddAssignmentForm({
     <form action={action} className="staff-form staff-assignment-add">
       <input name="userId" type="hidden" value={memberId} />
       <label htmlFor={`assignment-role-${memberId}`}><span>เพิ่มบทบาท</span><select disabled={!activeRoles.length} id={`assignment-role-${memberId}`} name="roleId" onChange={(event) => setRoleId(event.target.value)} required value={selectedRole?.id ?? ""}>{activeRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-      <ScopeFields branches={branches} idPrefix={`assignment-${memberId}`} key={selectedRole?.id ?? "no-role"} organizationOnly={roleRequiresOrganizationScope(selectedRole)} />
+      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix={`assignment-${memberId}`} key={selectedRole?.id ?? "no-role"} />
       <Feedback state={state} />
       <button className="secondary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังเพิ่ม…" : "เพิ่มสิทธิ์ให้พนักงาน"}</button>
     </form>

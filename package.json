@@ -12,6 +12,7 @@
     "db:migrate": "node scripts/prisma-env.cjs migrate dev",
     "db:deploy": "node scripts/prisma-env.cjs migrate deploy",
     "test:auth": "node --test tests/auth-permissions.test.cjs",
+    "test:registration": "node --test tests/owner-registration.test.cjs",
     "test:menu-images": "node --test tests/menu-image.test.cjs",
     "test:menu-images:db": "node --test tests/menu-image-route.test.cjs",
     "test:auth:db": "node --test tests/auth-db.test.cjs",

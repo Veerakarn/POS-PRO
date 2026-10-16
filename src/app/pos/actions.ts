@@ -1,6 +1,6 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 
 import { revalidatePath } from "next/cache";
@@ -18,6 +18,7 @@ export type CounterActionResult = {
   warning?: string;
   qrDataUrl?: string;
   printQueued?: number;
+  sessionId?: string;
 };
 
 export type CounterOrderInput = {
@@ -36,6 +37,8 @@ type CounterTableInput = {
   branchId: string;
   tableId: string;
 };
+
+type CounterSessionInput = CounterTableInput & { sessionId: string };
 
 function isSafeIdentifier(value: string, maxLength = 100) {
   return value.length > 0 && value.length <= maxLength;
@@ -88,6 +91,20 @@ function publicAppOrigin() {
   }
 }
 
+function tableSessionQrUrl(table: NonNullable<Awaited<ReturnType<typeof findCounterTable>>>, accessNonce: string) {
+  const origin = publicAppOrigin();
+  return origin
+    ? `${origin}/q/${encodeURIComponent(table.branch.organization.slug)}/${encodeURIComponent(table.branch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}&s=${encodeURIComponent(accessNonce)}`
+    : "";
+}
+
+async function findActiveTableSession(tableId: string, branchId: string, sessionId: string) {
+  return db.tableSession.findFirst({
+    where: { id: sessionId, tableId, branchId, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } },
+    select: { id: true, accessNonce: true, openedAt: true },
+  });
+}
+
 export async function openCounterTable(input: CounterTableInput): Promise<CounterActionResult> {
   if (!isSafeIdentifier(input.branchId) || !isSafeIdentifier(input.tableId)) {
     return { error: "ไม่พบโต๊ะที่เลือก" };
@@ -97,10 +114,7 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
   const table = await findCounterTable(input, user.organizationId);
   if (!table) return { error: "ไม่พบโต๊ะที่เลือก" };
   const accessNonce = randomBytes(24).toString("base64url");
-  const origin = publicAppOrigin();
-  const qrUrl = origin
-    ? `${origin}/q/${encodeURIComponent(table.branch.organization.slug)}/${encodeURIComponent(table.branch.code)}/${encodeURIComponent(table.code)}?k=${encodeURIComponent(table.qrSecret)}&s=${encodeURIComponent(accessNonce)}`
-    : "";
+  const qrUrl = tableSessionQrUrl(table, accessNonce);
 
   try {
     const result = await db.$transaction(
@@ -140,7 +154,7 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
     if ("error" in result) return result;
     refreshCounterPages(input.branchId);
 
-    if (!qrUrl) return { success: result.success, warning: "เปิดโต๊ะแล้ว แต่ยังสร้าง QR ไม่ได้: ตรวจ NEXT_PUBLIC_APP_URL แล้ว deploy หรือรีสตาร์ตระบบ" };
+    if (!qrUrl) return { success: result.success, sessionId: result.sessionId, warning: "เปิดโต๊ะแล้ว แต่ยังสร้าง QR ไม่ได้: ตรวจ NEXT_PUBLIC_APP_URL แล้ว deploy หรือรีสตาร์ตระบบ" };
 
     let qrDataUrl: string | undefined;
     let printQueued = 0;
@@ -166,6 +180,7 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
     }
     return {
       success: result.success,
+      sessionId: result.sessionId,
       ...(qrDataUrl ? { qrDataUrl } : {}),
       printQueued,
       ...(warnings.length ? { warning: `เปิดโต๊ะแล้ว แต่${warnings.join(" และ ")}` } : {}),
@@ -174,6 +189,74 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
     const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
     if (code === "P2002") return { error: "โต๊ะนี้เปิดใช้งานอยู่แล้ว" };
     return { error: "เปิดโต๊ะไม่สำเร็จ กรุณาลองอีกครั้ง" };
+  }
+}
+
+export async function getCounterTableQr(input: CounterSessionInput): Promise<CounterActionResult> {
+  if (!isSafeIdentifier(input.branchId) || !isSafeIdentifier(input.tableId) || !isSafeIdentifier(input.sessionId)) return { error: "ไม่พบโต๊ะที่เลือก" };
+  const user = await requirePermission("pos.use", input.branchId);
+  const table = await findCounterTable(input, user.organizationId);
+  if (!table) return { error: "ไม่พบโต๊ะที่เลือก" };
+  const session = await findActiveTableSession(table.id, table.branchId, input.sessionId);
+  if (!session) return { error: "โต๊ะนี้ไม่มีรอบที่เปิดอยู่" };
+  const qrUrl = tableSessionQrUrl(table, session.accessNonce);
+  if (!qrUrl) return { error: "ยังสร้าง QR ไม่ได้ กรุณาตรวจ NEXT_PUBLIC_APP_URL" };
+  try {
+    return {
+      qrDataUrl: await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: "M", margin: 1, width: 300 }),
+      success: "QR ของรอบโต๊ะปัจจุบัน",
+    };
+  } catch {
+    return { error: "แสดงภาพ QR ไม่สำเร็จ กรุณาลองอีกครั้ง" };
+  }
+}
+
+export async function reprintCounterTableQr(input: CounterSessionInput): Promise<CounterActionResult> {
+  if (!isSafeIdentifier(input.branchId) || !isSafeIdentifier(input.tableId) || !isSafeIdentifier(input.sessionId)) return { error: "ไม่พบโต๊ะที่เลือก" };
+  const user = await requirePermission("pos.use", input.branchId);
+  const table = await findCounterTable(input, user.organizationId);
+  if (!table) return { error: "ไม่พบโต๊ะที่เลือก" };
+  const session = await findActiveTableSession(table.id, table.branchId, input.sessionId);
+  if (!session) return { error: "โต๊ะนี้ไม่มีรอบที่เปิดอยู่" };
+  const qrUrl = tableSessionQrUrl(table, session.accessNonce);
+  if (!qrUrl) return { error: "ยังพิมพ์ QR ไม่ได้ กรุณาตรวจ NEXT_PUBLIC_APP_URL" };
+
+  try {
+    const printQueued = await db.$transaction(async (tx) => {
+      const stillOpen = await tx.tableSession.findFirst({
+        where: { id: session.id, tableId: table.id, branchId: table.branchId, status: { in: ["OPEN", "CHECK_REQUESTED", "PAYMENT_IN_PROGRESS"] } },
+        select: { id: true },
+      });
+      if (!stillOpen) return -1;
+      const count = await enqueueTableSessionQr(tx, {
+        branchId: table.branchId,
+        sessionId: session.id,
+        tableName: table.name,
+        branchName: table.branch.name,
+        url: qrUrl,
+        createdAt: session.openedAt,
+        reprintId: randomUUID(),
+      });
+      if (count) await tx.auditLog.create({
+        data: {
+          organizationId: user.organizationId,
+          branchId: table.branchId,
+          actorId: user.id,
+          action: "table.qr_reprinted_from_counter",
+          entityType: "TableSession",
+          entityId: session.id,
+          after: { tableId: table.id, printQueued: count },
+        },
+      });
+      return count;
+    }, { maxWait: 10_000, timeout: 15_000 });
+    if (printQueued === -1) return { error: "โต๊ะนี้ปิดรอบแล้ว กรุณาเปิดโต๊ะใหม่ก่อนพิมพ์ QR" };
+    if (!printQueued) return { error: "ยังไม่ได้ตั้งเส้นทางพิมพ์ QR ของสาขานี้ กรุณาตั้งค่าเครื่องพิมพ์ก่อน" };
+    return { success: `ส่งพิมพ์ QR เดิมของ ${table.name} แล้ว ${printQueued} เครื่อง`, printQueued };
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
+    console.error(`Failed to reprint table QR (code ${code})`);
+    return { error: "ส่งพิมพ์ QR ไม่สำเร็จ กรุณาลองอีกครั้ง" };
   }
 }
 

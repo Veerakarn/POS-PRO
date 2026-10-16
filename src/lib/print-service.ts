@@ -224,6 +224,7 @@ export async function enqueueTableSessionQr(tx: TransactionClient, input: {
   branchName: string;
   url: string;
   createdAt: Date;
+  reprintId?: string;
 }) {
   const routes = await tx.printRoutingRule.findMany({
     where: {
@@ -242,7 +243,9 @@ export async function enqueueTableSessionQr(tx: TransactionClient, input: {
       branchId: input.branchId,
       printerId: route.printerId,
       documentType: "TABLE_QR" as const,
-      idempotencyKey: `table-qr:${input.sessionId}:printer:${route.printerId}`,
+      idempotencyKey: input.reprintId
+        ? `table-qr:${input.sessionId}:reprint:${input.reprintId}:printer:${route.printerId}`
+        : `table-qr:${input.sessionId}:printer:${route.printerId}`,
       document: {
         version: 1,
         type: "TABLE_QR",
