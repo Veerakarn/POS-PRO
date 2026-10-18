@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { logout } from "@/app/auth-actions";
+import { AccountMenu } from "@/components/account-menu";
 import { AppNavigation } from "@/components/app-navigation";
 import { defaultLandingRoute, getCurrentUser } from "@/lib/auth";
 import { userHasPermission } from "@/lib/authorization";
@@ -56,17 +55,9 @@ export async function AppShell({
             <span>พื้นที่ทำงาน</span>
             <strong><span aria-hidden="true" className="topbar-status-dot" />สาขา {branchName}</strong>
           </div>
-          {resolvedUserName ? (
-            <Link className="user-chip" href="/account/change-pin" title="เปลี่ยน PIN">
-              <span aria-hidden="true" className="user-avatar">{resolvedUserName.slice(0, 1)}</span>
-              <span>{resolvedUserName}</span>
-            </Link>
-          ) : null}
           {currentUser ? (
-            <form action={logout}>
-              <button className="topbar-logout" type="submit">ออกจากระบบ</button>
-            </form>
-          ) : null}
+            <AccountMenu account={{ displayName: currentUser.displayName, email: currentUser.email, avatarData: currentUser.avatarData }} />
+          ) : resolvedUserName ? <span className="user-chip">{resolvedUserName}</span> : null}
         </header>
         {children}
       </div>

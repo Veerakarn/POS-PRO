@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   changeOwnPin,
@@ -9,11 +9,13 @@ import {
 
 const initialState: ChangePinState = {};
 
-export function ChangePinForm() {
+export function ChangePinForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [state, formAction, isPending] = useActionState(changeOwnPin, initialState);
+  useEffect(() => { if (state.success) onSuccess?.(); }, [state.success, onSuccess]);
 
   return (
     <form action={formAction} className="access-form">
+      {onSuccess ? <input type="hidden" name="presentation" value="drawer" /> : null}
       <label>
         <span>PIN ปัจจุบัน</span>
         <input autoComplete="current-password" inputMode="numeric" maxLength={6} name="currentPin" pattern="[0-9]{6}" required type="password" />

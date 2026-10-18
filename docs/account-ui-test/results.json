@@ -1,0 +1,19 @@
+{
+  "results": [
+    "Login renders the new account control",
+    "Notification badge shows 9+ and only the 12 permitted branch requests",
+    "Drawer opens, Escape closes it and restores focus to the name",
+    "Profile name and uploaded photo persist in the database and after reload",
+    "Drawer fits a 390px mobile viewport",
+    "Incorrect current PIN is rejected in the drawer",
+    "Changing PIN succeeds and invalidates other sessions",
+    "Logout clears the session and returns to login",
+    "Old PIN no longer signs in; new PIN signs in with the saved profile photo",
+    "Removing profile photo persists to the database",
+    "Notification refresh removes resolved requests and clears the badge",
+    "No browser JavaScript errors"
+  ],
+  "errors": [],
+  "passed": true,
+  "timestamp": "2026-10-18T18:56:08.054Z"
+}

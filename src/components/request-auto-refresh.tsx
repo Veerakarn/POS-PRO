@@ -8,7 +8,7 @@ export function RequestAutoRefresh() {
 
   useEffect(() => {
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible" && !document.querySelector("dialog[open]")) router.refresh();
     };
 
     const interval = window.setInterval(refreshWhenVisible, 5_000);

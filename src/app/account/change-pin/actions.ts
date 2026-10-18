@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 
 export type ChangePinState = {
   error?: string;
+  success?: boolean;
 };
 
 function readText(formData: FormData, key: string) {
@@ -79,5 +80,6 @@ export async function changeOwnPin(
 
   await startSession(user.id);
   revalidatePath("/", "layout");
+  if (formData.get("presentation") === "drawer" && !user.mustChangePin) return { success: true };
   redirect(defaultLandingRoute(user));
 }

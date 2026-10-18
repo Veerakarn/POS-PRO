@@ -145,6 +145,7 @@ model User {
   organizationId    String
   email             String
   displayName       String
+  avatarData        String?
   pinHash           String?
   isActive          Boolean          @default(true)
   mustChangePin     Boolean          @default(false)

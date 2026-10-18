@@ -12,6 +12,66 @@
   --shadow: 0 18px 42px rgba(22, 53, 38, 0.08);
 }
 
+.account-controls { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.account-bell, .account-icon-button { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: #40564a; cursor: pointer; }
+.account-bell:hover, .account-icon-button:hover { background: #eef5f0; }
+.account-badge { position: absolute; top: 1px; right: 0; min-width: 18px; padding: 1px 4px; border: 2px solid white; border-radius: 20px; background: #e73e4c; color: white; font-size: 10px; font-weight: 800; line-height: 14px; }
+.account-control-divider { width: 1px; height: 26px; background: var(--line); }
+.account-trigger { cursor: pointer; font-family: inherit; }
+.account-trigger-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 32px; height: 32px; overflow: hidden; border-radius: 50%; background: #d9eee3; color: #1f6a4e; font-weight: 800; text-transform: uppercase; }
+.account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.account-avatar.large { width: 80px; height: 80px; font-size: 30px; box-shadow: 0 0 0 5px #f0f7f3; }
+.account-drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0; border-left: 1px solid var(--line); background: white; color: var(--ink); box-shadow: -16px 0 60px #173b2326; overflow-y: auto; overscroll-behavior: contain; }
+.account-drawer[open] { animation: account-slide-in .24s ease-out; }
+.account-drawer::backdrop { background: #10291f66; backdrop-filter: blur(2px); }
+.account-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 25px 24px; border-bottom: 1px solid var(--line); }
+.account-drawer-header p { margin: 0 0 5px; color: var(--moss); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.account-drawer-header h2 { margin: 0; font-size: 22px; }
+.account-drawer-body { padding: 24px; }
+.account-summary { display: flex; flex-direction: column; align-items: center; padding: 10px 0 28px; text-align: center; }
+.account-summary h3 { max-width: 100%; margin: 19px 0 4px; font-size: 21px; overflow-wrap: anywhere; }
+.account-summary p { max-width: 100%; margin: 0 0 12px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.account-summary > span:last-child { padding: 4px 10px; border-radius: 20px; background: #eef6f0; color: var(--moss); font-size: 11px; }
+.account-menu-list { display: grid; gap: 10px; }
+.account-menu-list button { display: flex; align-items: center; gap: 14px; padding: 17px 14px; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--moss); text-align: left; font: inherit; cursor: pointer; }
+.account-menu-list button:hover { background: #f4f9f5; border-color: #b3d3bf; }
+.account-menu-list button > span:first-of-type { display: grid; flex: 1; gap: 5px; }
+.account-menu-list strong { font-size: 14px; color: var(--ink); }
+.account-menu-list small { font-size: 12px; color: var(--muted); }
+.account-logout-form { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+.account-logout-form button { display: flex; justify-content: center; align-items: center; gap: 10px; width: 100%; padding: 13px; border: 1px solid #f0d9d4; border-radius: 10px; color: #ae4638; background: #fff7f5; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.account-back { margin: 0 0 25px; padding: 0; border: 0; background: transparent; color: var(--moss); font: inherit; font-size: 13px; cursor: pointer; }
+.account-profile-form { display: grid; gap: 18px; }
+.account-profile-form fieldset { display: grid; gap: 22px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.account-photo-editor { display: flex; align-items: center; gap: 20px; padding: 8px 0 18px; }
+.account-photo-editor > div { display: grid; justify-items: start; gap: 9px; }
+.account-photo-editor small, .account-field small { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.account-upload { cursor: pointer; font-size: 12px; }
+.account-file-input { max-width: 100%; font-size: 12px; }
+.account-field { display: grid; gap: 8px; font-size: 13px; font-weight: 700; }
+.account-field input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: #fcfdfc; font: inherit; }
+.account-field input[readonly] { background: #f4f6f4; color: var(--muted); }
+.account-success { margin: 0; padding: 12px; border-radius: 9px; background: #eaf7ee; color: var(--moss); font-size: 13px; }
+.account-hint { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.account-notification-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; color: var(--muted); font-size: 12px; }
+.account-empty { display: grid; justify-items: center; padding: 65px 10px; text-align: center; color: var(--muted); }
+.account-empty > svg { width: 46px; height: 46px; padding: 11px; box-sizing: content-box; border-radius: 50%; background: #f0f6f2; color: #81a18e; }
+.account-empty h3 { margin: 20px 0 6px; color: var(--ink); font-size: 16px; }
+.account-empty p { margin: 0; font-size: 13px; }
+.account-notifications { display: grid; gap: 10px; margin-bottom: 20px; }
+.account-notifications a { display: flex; align-items: start; gap: 12px; padding: 16px; border: 1px solid #deebe2; border-radius: 12px; background: #f6faf7; color: var(--ink); }
+.account-notifications a:hover { background: #eaf5ed; }
+.account-notifications a > div { flex: 1; }
+.account-notifications strong { font-size: 13px; }
+.account-notifications p { margin: 5px 0; color: var(--muted); font-size: 12px; }
+.account-notifications small { color: var(--muted); font-size: 11px; }
+.account-notification-dot { flex: 0 0 auto; width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: #36a76a; }
+.account-controls button:focus-visible, .account-drawer button:focus-visible, .account-drawer a:focus-visible, .account-drawer input:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+@keyframes account-slide-in { from { transform: translateX(100%); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .account-drawer[open] { animation: none; } }
+@media (max-width: 600px) { .account-controls { gap: 6px; } .account-trigger-name { display: none; } .account-drawer-body { padding: 20px; } }
+
 .inventory-page { max-width: 1500px; }
 .inventory-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
 .inventory-panel { padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }

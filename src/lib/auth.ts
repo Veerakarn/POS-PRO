@@ -25,6 +25,7 @@ export type SessionUser = {
   organizationId: string;
   email: string;
   displayName: string;
+  avatarData?: string | null;
   mustChangePin: boolean;
   roleAssignments: Array<{
     branchId: string | null;
@@ -106,6 +107,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
           organizationId: true,
           email: true,
           displayName: true,
+          avatarData: true,
           isActive: true,
           mustChangePin: true,
           roleAssignments: {
@@ -155,6 +157,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     organizationId: session.user.organizationId,
     email: session.user.email,
     displayName: session.user.displayName,
+    avatarData: session.user.avatarData,
     mustChangePin: session.user.mustChangePin,
     roleAssignments: validAssignments,
   };
