@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState, type FormEvent } from "react";
+import { useActionState, useState } from "react";
 import { MenuImageFields } from "@/components/menu-image-fields";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 
 import {
   archiveMenuItem,
@@ -39,19 +40,15 @@ export function MenuItemEditor({
   );
   const [archiveState, archiveAction, isArchiving] = useActionState(archiveMenuItem, initialState);
 
-  function confirmArchive(event: FormEvent<HTMLFormElement>) {
-    if (!window.confirm(`ยืนยันลบเมนู “${item.name}” ออกจากรายการขายใช่หรือไม่? เมนูจะไม่แสดงให้สั่ง แต่ประวัติเดิมยังคงอยู่`)) {
-      event.preventDefault();
-    }
-  }
-
   if (!isEditing) {
     return (
       <div className="menu-card-actions">
         <button className="secondary-button compact" onClick={() => setIsEditing(true)} type="button">แก้ไข</button>
-        <form action={archiveAction} onSubmit={confirmArchive}>
+        <form action={archiveAction}>
           <input name="menuItemId" type="hidden" value={item.id} />
-          <button className="danger-button compact" disabled={isArchiving} type="submit">{isArchiving ? "กำลังลบ…" : "ลบ"}</button>
+          <ConfirmSubmitButton className="danger-button compact" disabled={isArchiving} message={`ยืนยันลบเมนู “${item.name}” ออกจากรายการขายใช่หรือไม่? เมนูจะไม่แสดงให้สั่ง แต่ประวัติเดิมยังคงอยู่`} title={`ลบเมนู ${item.name}`} titleText="ยืนยันลบเมนู">
+            {isArchiving ? "กำลังลบ…" : "ลบ"}
+          </ConfirmSubmitButton>
         </form>
         {archiveState.error ? <p className="form-error" role="alert">{archiveState.error}</p> : null}
       </div>

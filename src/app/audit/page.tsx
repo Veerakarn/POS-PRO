@@ -42,6 +42,8 @@ const actionLabels: Record<string, string> = {
   "recipe.updated": "แก้ไขสูตรอาหาร",
   "menu_category.created": "เพิ่มหมวดหมู่อาหาร",
   "membership.settings_updated": "เปลี่ยนกติกาสะสมแต้ม",
+  "user.deactivated": "ปิดใช้งานบัญชีผู้ใช้",
+  "user.activated": "เปิดใช้งานบัญชีผู้ใช้",
   "menu_item.created": "เพิ่มเมนู",
   "menu_item.updated": "แก้ไขเมนู",
   "menu_item.archived": "ซ่อนเมนู",
