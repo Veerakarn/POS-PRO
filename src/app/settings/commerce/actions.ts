@@ -108,7 +108,7 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const included = data.get("taxIncluded") === "on";
   if (legalName.length < 2 || legalName.length > 200) return { error: "ชื่อผู้ประกอบการต้องมี 2–200 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
   if (address.length < 5 || address.length > 500) return { error: "ที่อยู่ต้องมี 5–500 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
-  if (taxpayerId.length > 50) return { error: "เลขผู้เสียภาษีหรือข้อมูลชั่วคราวต้องไม่เกิน 50 ตัวอักษร" };
+  if (!/^[0-9]{13}$/.test(taxpayerId)) return { error: "เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลขครบ 13 หลัก" };
   if (!/^\d{5}$/.test(branchNumber)) return { error: "รหัสสาขาต้องเป็นตัวเลข 5 หลัก เช่น 00000" };
   if (!/^[A-Z0-9-]{1,10}$/.test(prefix) || !Number.isFinite(rate) || rate < 0 || rate > 20) return { error: "ตรวจคำนำหน้าเอกสารและอัตราภาษีอีกครั้ง" };
   try {

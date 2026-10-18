@@ -63,7 +63,7 @@ function fixture({ authorized = true } = {}) {
   return { actions, calls, form, invoiceForm };
 }
 
-for (const taxpayerId of ["1233139748188", "ทดสอบ-TAX-01", ""]) {
+for (const taxpayerId of ["1233139748188", "0123456789012"]) {
   test(`production saves and reloads temporary taxpayer ID ${JSON.stringify(taxpayerId)} without configuration`, async () => {
     const { actions, calls, form } = fixture();
     form.set("taxpayerId", taxpayerId);
@@ -82,8 +82,11 @@ for (const taxpayerId of ["1233139748188", "ทดสอบ-TAX-01", ""]) {
     const input = html.match(/<input\b[^>]*name="taxpayerId"[^>]*>/)?.[0];
     assert.ok(input);
     assert.ok(input.includes(`value="${taxpayerId}"`));
-    assert.match(input, /maxLength="50"/i);
-    assert.doesNotMatch(input, /\b(?:pattern|required)=/);
+    assert.match(input, /maxLength="13"/i);
+    assert.match(input, /minLength="13"/i);
+    assert.match(input, /inputMode="numeric"/i);
+    assert.match(input, /pattern="\[0-9\]\{13\}"/);
+    assert.match(input, /\brequired=""/);
   });
 }
 
@@ -106,12 +109,17 @@ test("correcting the saved ID enables invoicing using the corrected seller snaps
   assert.equal(calls.invoices[0].sellerSnapshot.taxpayerId, "1234567890121");
 });
 
-test("permission checks and input length limits still prevent writes", async () => {
+test("permission checks still prevent writes", async () => {
   const denied = fixture({ authorized: false });
   await assert.rejects(denied.actions.saveTaxProfile({}, denied.form), /Forbidden/);
   assert.equal(denied.calls.saved.length, 0);
-  const { actions, calls, form } = fixture();
-  form.set("taxpayerId", "x".repeat(51));
-  assert.match((await actions.saveTaxProfile({}, form)).error, /50/);
-  assert.equal(calls.saved.length, 0);
 });
+
+for (const taxpayerId of ["", "123456789012", "12345678901234", "123456789012x", "ทดสอบ-TAX-01"]) {
+  test(`rejects taxpayer ID ${JSON.stringify(taxpayerId)} before writing unless it contains exactly 13 digits`, async () => {
+    const { actions, calls, form } = fixture();
+    form.set("taxpayerId", taxpayerId);
+    assert.match((await actions.saveTaxProfile({}, form)).error, /ตัวเลขครบ 13 หลัก/);
+    assert.equal(calls.saved.length, 0);
+  });
+}
