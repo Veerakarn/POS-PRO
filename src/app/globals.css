@@ -17,7 +17,13 @@
 .inventory-panel { padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
 .inventory-panel h2 { margin: 0 0 14px; font-size: 21px; }
 .inventory-panel > p { color: var(--muted); font-size: 13px; line-height: 1.6; }
-.inventory-sidebar, .ingredient-list { display: grid; gap: 16px; }
+.inventory-main-column, .inventory-sidebar, .ingredient-list { display: grid; gap: 16px; }
+.inventory-main-column { align-content: start; min-width: 0; }
+.inventory-empty-state { display: grid; justify-items: center; gap: 8px; margin-top: 10px; padding: 24px 18px; text-align: center; background: #f8faf8; border: 1px dashed #c8d9ce; border-radius: 12px; }
+.inventory-empty-state > span { display: grid; width: 34px; height: 34px; place-items: center; color: white; background: var(--moss); border-radius: 50%; font-size: 22px; line-height: 1; }
+.inventory-empty-state > strong { font-size: 14px; }
+.inventory-empty-state > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.inventory-empty-state .secondary-button { margin-top: 4px; }
 .inventory-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
 .inventory-metrics article { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: white; }
 .inventory-metrics span, .inventory-metrics small { display: block; color: var(--muted); font-size: 12px; line-height: 1.6; }

@@ -50,10 +50,16 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       </section>
       <p className="configuration-notice">เมนูที่ผูกสูตรจะตัดสต็อกทันทีเมื่อส่งออเดอร์ใหม่จาก QR หรือเคาน์เตอร์ แม้ยอดไม่พอก็ยังขายได้และจะแสดงสต็อกติดลบให้ตรวจสอบ · ยังมีเมนูไม่มีสูตร {missingRecipes} รายการ</p>
       <div className="inventory-layout">
+        <div className="inventory-main-column">
         <section className="inventory-panel">
           <header className="inventory-section-heading"><h2>วัตถุดิบคงเหลือ</h2><Link href={`${branchUrl}${params.archived === "1" ? "" : "&archived=1"}`}>{params.archived === "1" ? "ดูที่ใช้งาน" : "ดูที่ปิดใช้งาน"}</Link></header>
           <form className="inventory-search" method="get"><input type="hidden" name="branch" value={branch.id} /><input type="hidden" name="archived" value={params.archived ?? ""} /><label className="sr-only" htmlFor="ingredient-search">ค้นหาวัตถุดิบ</label><input id="ingredient-search" name="q" defaultValue={params.q} placeholder="ค้นหาชื่อวัตถุดิบ" maxLength={100} /><button className="secondary-button" type="submit">ค้นหา</button></form>
-          {visible.length === 0 && <p className="empty-state">{active.length ? "ไม่พบวัตถุดิบตามที่เลือก" : "เริ่มจากเพิ่มวัตถุดิบ แล้วรับสินค้าเข้าพร้อมต้นทุนจริง"}</p>}
+          {visible.length === 0 && <div className="inventory-empty-state">
+            <span aria-hidden="true">+</span>
+            <strong>{params.q ? "ไม่พบวัตถุดิบที่ตรงกับคำค้น" : params.archived === "1" ? "ยังไม่มีวัตถุดิบที่ปิดใช้งาน" : "ยังไม่มีวัตถุดิบในคลัง"}</strong>
+            <p>{params.q ? "ลองค้นหาด้วยคำอื่น หรือล้างคำค้นเพื่อดูรายการทั้งหมด" : params.archived === "1" ? "วัตถุดิบที่ปิดใช้งานจะแสดงในรายการนี้" : "เพิ่มวัตถุดิบก่อน แล้วจึงบันทึกรับสินค้าเข้าคลัง"}</p>
+            {params.q ? <Link className="secondary-button compact" href={branchUrl}>ล้างคำค้น</Link> : scope.canManageShared && params.archived !== "1" ? <Link className="secondary-button compact" href="#add-ingredient">เริ่มเพิ่มวัตถุดิบ</Link> : null}
+          </div>}
           <div className="ingredient-list">{visible.map((item) => {
             const balance = item.balances[0];
             const quantity = balance?.quantity ?? new Prisma.Decimal(0);
@@ -70,8 +76,9 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
             </article>;
           })}</div>
         </section>
-        <aside className="inventory-sidebar"><section className="inventory-panel"><h2>บันทึกสต็อก</h2><p>สาขา {branch.name} · ใช้หน่วยหลักเดียวกับสูตรอาหาร</p><StockMovementForm key={branch.id} branchId={branch.id} ingredients={options} requestId={randomUUID()} /></section>
-          {scope.canManageShared && <section className="inventory-panel"><h2>เพิ่มวัตถุดิบ</h2><p>ชื่อและหน่วยใช้ร่วมกันทุกสาขา ส่วนยอดและราคาทุนแยกตามสาขา</p><IngredientForm /></section>}
+        {scope.canManageShared && <section className="inventory-panel" id="add-ingredient"><p className="eyebrow">เริ่มต้นคลัง</p><h2>เพิ่มวัตถุดิบ</h2><p>ชื่อและหน่วยใช้ร่วมกันทุกสาขา ส่วนยอดและราคาทุนแยกตามสาขา</p><IngredientForm /></section>}
+        </div>
+          <aside className="inventory-sidebar"><section className="inventory-panel"><h2>บันทึกสต็อก</h2><p>สาขา {branch.name} · ใช้หน่วยหลักเดียวกับสูตรอาหาร</p><StockMovementForm key={branch.id} branchId={branch.id} ingredients={options} requestId={randomUUID()} /></section>
         </aside>
       </div>
       <section className="inventory-panel inventory-history"><h2>ประวัติการเคลื่อนไหว</h2><p>เรียงจากล่าสุด · แก้ยอดผ่านรายการตรวจนับพร้อมเหตุผล ประวัติเดิมจะยังอยู่</p>

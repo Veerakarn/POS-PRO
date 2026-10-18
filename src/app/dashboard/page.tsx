@@ -57,6 +57,7 @@ function activityTitle(action: string, branchName: string | null, actorName: str
     "user.deactivated": "ปิดใช้งานบัญชีผู้ใช้",
     "user.activated": "เปิดใช้งานบัญชีผู้ใช้",
     "role_assignment.created": "มอบหมายบทบาทให้พนักงาน",
+    "role_assignment.scope_changed": "เปลี่ยนขอบเขตสาขาของบทบาทพนักงาน",
     "role_assignment.removed": "ถอดบทบาทของพนักงาน",
     "cash_shift.opened": "เปิดกะเงินสด",
     "cash_shift.closed": "ปิดกะเงินสด",

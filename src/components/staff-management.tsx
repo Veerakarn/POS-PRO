@@ -243,10 +243,12 @@ function AssignmentRemoveForm({ memberId, assignment }: { memberId: string; assi
 
 function AddAssignmentForm({
   branches,
+  assignments,
   memberId,
   roles,
 }: {
   branches: BranchOption[];
+  assignments: StaffAssignment[];
   memberId: string;
   roles: RoleOption[];
 }) {
@@ -254,14 +256,16 @@ function AddAssignmentForm({
   const activeRoles = roles.filter((role) => role.isActive && !role.isSystem);
   const [roleId, setRoleId] = useState(activeRoles[0]?.id ?? "");
   const selectedRole = activeRoles.find((role) => role.id === roleId) ?? activeRoles[0];
+  const hasGlobalAssignment = assignments.some((assignment) => assignment.roleId === selectedRole?.id && assignment.branchId === null);
 
   return (
     <form action={action} className="staff-form staff-assignment-add">
       <input name="userId" type="hidden" value={memberId} />
       <label htmlFor={`assignment-role-${memberId}`}><span>เพิ่มบทบาท</span><select disabled={!activeRoles.length} id={`assignment-role-${memberId}`} name="roleId" onChange={(event) => setRoleId(event.target.value)} required value={selectedRole?.id ?? ""}>{activeRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
       <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix={`assignment-${memberId}`} key={selectedRole?.id ?? "no-role"} />
+      {hasGlobalAssignment ? <small className="staff-scope-note">บทบาทนี้มีสิทธิ์ทุกสาขาอยู่แล้ว หากเลือกเฉพาะสาขา ระบบจะเปลี่ยนขอบเขตเดิมให้เหลือสาขาที่เลือก</small> : null}
       <Feedback state={state} />
-      <button className="secondary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังเพิ่ม…" : "เพิ่มสิทธิ์ให้พนักงาน"}</button>
+      <button className="secondary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังบันทึก…" : hasGlobalAssignment ? "บันทึกขอบเขตบทบาท" : "เพิ่มสิทธิ์ให้พนักงาน"}</button>
     </form>
   );
 }
@@ -358,7 +362,7 @@ function StaffCard({
                   <AssignmentRemoveForm assignment={assignment} key={assignment.id} memberId={member.id} />
                 )) : <p className="staff-inline-note">บัญชีนี้ยังไม่มีสิทธิ์ใช้งานส่วนใดของระบบ</p>}
               </div>
-              <AddAssignmentForm branches={branches} memberId={member.id} roles={roles} />
+              <AddAssignmentForm assignments={member.assignments} branches={branches} memberId={member.id} roles={roles} />
             </>
           )}
         </details>

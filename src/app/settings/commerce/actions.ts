@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireOrganizationPermission, requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isThaiTaxId } from "@/lib/commerce-rules";
+import { isTaxProfileTestModeEnabled, isThaiTaxId } from "@/lib/commerce-rules";
 
 export type CommerceState = { error?: string; success?: string };
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
@@ -99,7 +99,9 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const branchId = text(data, "branchId");
   const user = await requirePermission("payment.manage", branchId);
   const legalName = text(data, "legalName");
-  const taxpayerId = text(data, "taxpayerId").replace(/\D/g, "");
+  const rawTaxpayerId = text(data, "taxpayerId");
+  const allowTestTaxId = isTaxProfileTestModeEnabled();
+  const taxpayerId = allowTestTaxId ? rawTaxpayerId : rawTaxpayerId.replace(/\D/g, "");
   const address = text(data, "address");
   const branchNumber = text(data, "branchNumber");
   const prefix = text(data, "documentPrefix").toUpperCase();
@@ -108,7 +110,9 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const included = data.get("taxIncluded") === "on";
   if (legalName.length < 2 || legalName.length > 200) return { error: "ชื่อผู้ประกอบการต้องมี 2–200 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
   if (address.length < 5 || address.length > 500) return { error: "ที่อยู่ต้องมี 5–500 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
-  if (!isThaiTaxId(taxpayerId)) return { error: "เลขประจำตัวผู้เสียภาษีต้องเป็นเลข 13 หลักที่ถูกต้อง" };
+  if (allowTestTaxId ? (!taxpayerId || taxpayerId.length > 50) : !isThaiTaxId(taxpayerId)) {
+    return { error: allowTestTaxId ? "กรอกค่าเลขทดสอบไม่เกิน 50 ตัวอักษร" : "เลขประจำตัวผู้เสียภาษีต้องเป็นเลข 13 หลักที่ถูกต้อง" };
+  }
   if (!/^\d{5}$/.test(branchNumber)) return { error: "รหัสสาขาต้องเป็นตัวเลข 5 หลัก เช่น 00000" };
   if (!/^[A-Z0-9-]{1,10}$/.test(prefix) || !Number.isFinite(rate) || rate < 0 || rate > 20) return { error: "ตรวจคำนำหน้าเอกสารและอัตราภาษีอีกครั้ง" };
   try {

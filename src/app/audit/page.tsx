@@ -19,6 +19,7 @@ const actionLabels: Record<string, string> = {
   "role.created": "สร้างบทบาทพนักงาน",
   "role.updated": "แก้ไขบทบาทพนักงาน",
   "role_assignment.created": "มอบหมายบทบาทให้พนักงาน",
+  "role_assignment.scope_changed": "เปลี่ยนขอบเขตสาขาของบทบาทพนักงาน",
   "role_assignment.removed": "นำบทบาทออกจากพนักงาน",
   "payment.received_at_counter": "รับชำระเงิน",
   "payment.refunded": "คืนเงิน",

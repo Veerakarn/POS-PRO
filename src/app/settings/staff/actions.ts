@@ -303,8 +303,38 @@ export async function addRoleAssignment(
   if (branchId && !branch) return { error: "ไม่พบสาขาที่เลือก" };
 
   try {
-    await db.$transaction(
+    const result = await db.$transaction(
       async (tx) => {
+        const currentAssignments = await tx.roleAssignment.findMany({
+          where: { userId: target.id, roleId: role.id },
+          select: { id: true, branchId: true },
+        });
+        const globalAssignment = currentAssignments.find((assignment) => assignment.branchId === null);
+
+        // Choosing a branch for a role that is already global should narrow the
+        // existing assignment instead of adding a redundant branch assignment.
+        if (branchId && globalAssignment) {
+          const duplicateBranchAssignment = currentAssignments.find((assignment) => assignment.branchId === branchId);
+          if (duplicateBranchAssignment) {
+            await tx.roleAssignment.delete({ where: { id: globalAssignment.id } });
+          } else {
+            await tx.roleAssignment.update({ where: { id: globalAssignment.id }, data: { branchId } });
+          }
+          await tx.auditLog.create({
+            data: {
+              organizationId: actor.organizationId,
+              branchId,
+              actorId: actor.id,
+              action: "role_assignment.scope_changed",
+              entityType: "RoleAssignment",
+              entityId: globalAssignment.id,
+              before: { userId: target.id, roleId: role.id, roleName: role.name, branchId: null },
+              after: { userId: target.id, roleId: role.id, roleName: role.name, branchId },
+            },
+          });
+          return { changedScope: true };
+        }
+
         const assignment = await tx.roleAssignment.create({
           data: { userId: target.id, roleId: role.id, branchId },
         });
@@ -319,11 +349,16 @@ export async function addRoleAssignment(
             after: { userId: target.id, roleId: role.id, roleName: role.name, branchId },
           },
         });
+        return { changedScope: false };
       },
       { maxWait: 10_000, timeout: 30_000 },
     );
     refreshStaffPages();
-    return { success: `เพิ่มบทบาท ${role.name} ให้ ${target.displayName} แล้ว` };
+    return {
+      success: result.changedScope
+        ? `เปลี่ยน ${role.name} ของ ${target.displayName} ให้ใช้ได้เฉพาะสาขาที่เลือกแล้ว`
+        : `เพิ่มบทบาท ${role.name} ให้ ${target.displayName} แล้ว`,
+    };
   } catch (error) {
     return { error: mutationError(error, "พนักงานมีบทบาทและขอบเขตนี้อยู่แล้ว") };
   }

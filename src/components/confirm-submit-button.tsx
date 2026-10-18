@@ -50,6 +50,7 @@ export function ConfirmSubmitButton({
         className={className}
         disabled={disabled}
         onClick={() => setIsOpen(true)}
+        ref={buttonRef}
         title={title}
         type="button"
       >
