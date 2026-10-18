@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 
 import {
   addRoleAssignment,
@@ -60,6 +60,14 @@ type StaffManagementProps = {
 
 const initialState: StaffActionState = {};
 
+function submitPreservingScope(event: FormEvent<HTMLFormElement>, action: (data: FormData) => void) {
+  // Automatic action resets can restore a radio's original checked state.
+  // Dispatch explicitly so the selected role, scope, and branch stay in sync.
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  startTransition(() => action(data));
+}
+
 function Feedback({ state }: { state: StaffActionState }) {
   return (
     <div aria-live="polite" className="staff-feedback">
@@ -72,15 +80,18 @@ function Feedback({ state }: { state: StaffActionState }) {
 function ScopeFields({
   branches,
   idPrefix,
+  initialBranchId,
   containsOrganizationPermissions = false,
 }: {
   branches: BranchOption[];
   idPrefix: string;
+  initialBranchId?: string | null;
   containsOrganizationPermissions?: boolean;
 }) {
   const [scope, setScope] = useState<"organization" | "branch">(
-    branches.length && !containsOrganizationPermissions ? "branch" : "organization",
+    initialBranchId === null || !branches.length ? "organization" : "branch",
   );
+  const [branchId, setBranchId] = useState(initialBranchId ?? branches[0]?.id ?? "");
 
   return (
     <fieldset className="staff-fieldset staff-scope-fieldset">
@@ -113,7 +124,7 @@ function ScopeFields({
       {scope === "branch" ? (
         <label className="staff-select-label" htmlFor={`${idPrefix}-branch`}>
           <span>สาขา</span>
-          <select defaultValue={branches[0]?.id} id={`${idPrefix}-branch`} name="branchId" required>
+          <select id={`${idPrefix}-branch`} name="branchId" onChange={(event) => setBranchId(event.target.value)} required value={branchId}>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>{branch.name} · {branch.code}</option>
             ))}
@@ -189,7 +200,7 @@ function CreateStaffForm({ branches, roles }: { branches: BranchOption[]; roles:
   const selectedRole = activeRoles.find((role) => role.id === roleId) ?? activeRoles[0];
 
   return (
-    <form action={action} className="staff-form">
+    <form action={action} className="staff-form" onSubmit={(event) => submitPreservingScope(event, action)}>
       <div className="staff-field-grid">
         <label htmlFor="new-staff-name"><span>ชื่อพนักงาน</span><input autoComplete="name" id="new-staff-name" maxLength={100} name="displayName" placeholder="เช่น สมชาย ใจดี" required /></label>
         <label htmlFor="new-staff-email"><span>อีเมลเข้าสู่ระบบ</span><input autoComplete="email" id="new-staff-email" maxLength={180} name="email" placeholder="staff@example.com" required type="email" /></label>
@@ -199,7 +210,7 @@ function CreateStaffForm({ branches, roles }: { branches: BranchOption[]; roles:
         <label htmlFor="new-staff-pin-confirmation"><span>ยืนยัน PIN</span><input autoComplete="new-password" id="new-staff-pin-confirmation" inputMode="numeric" maxLength={6} name="pinConfirmation" pattern="[0-9]{6}" required type="password" /></label>
       </div>
       <label htmlFor="new-staff-role"><span>บทบาทแรก</span><select disabled={!activeRoles.length} id="new-staff-role" name="roleId" onChange={(event) => setRoleId(event.target.value)} required value={selectedRole?.id ?? ""}>{activeRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix="new-staff" key={selectedRole?.id ?? "no-role"} />
+      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix="new-staff" />
       {!activeRoles.length ? <p className="staff-inline-note">เพิ่มหรือเปิดใช้งานบทบาทก่อนสร้างบัญชีพนักงาน</p> : null}
       <Feedback state={state} />
       <button className="primary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังเพิ่มพนักงาน…" : "เพิ่มพนักงาน"}</button>
@@ -233,7 +244,7 @@ function AssignmentRemoveForm({ memberId, assignment }: { memberId: string; assi
       <input name="assignmentId" type="hidden" value={assignment.id} />
       <div>
         <strong>{assignment.roleName}</strong>
-        <small>{assignment.branchName ?? "ทุกสาขา"}{assignment.roleIsSystem ? " · บทบาทระบบ" : ""}</small>
+        <small>{assignment.branchId === null ? "ทุกสาขา" : assignment.branchName ?? "สาขาที่เลือก"}{assignment.roleIsSystem ? " · บทบาทระบบ" : ""}</small>
       </div>
       <button className="danger-button" disabled={pending} type="submit">{pending ? "กำลังนำออก…" : "นำออก"}</button>
       <Feedback state={state} />
@@ -254,15 +265,20 @@ function AddAssignmentForm({
 }) {
   const [state, action, pending] = useActionState(addRoleAssignment, initialState);
   const activeRoles = roles.filter((role) => role.isActive && !role.isSystem);
-  const [roleId, setRoleId] = useState(activeRoles[0]?.id ?? "");
+  const [roleId, setRoleId] = useState(
+    assignments.find((assignment) => activeRoles.some((role) => role.id === assignment.roleId))?.roleId ?? activeRoles[0]?.id ?? "",
+  );
   const selectedRole = activeRoles.find((role) => role.id === roleId) ?? activeRoles[0];
-  const hasGlobalAssignment = assignments.some((assignment) => assignment.roleId === selectedRole?.id && assignment.branchId === null);
+  const roleAssignments = assignments.filter((assignment) => assignment.roleId === selectedRole?.id);
+  const globalAssignment = roleAssignments.find((assignment) => assignment.branchId === null);
+  const hasGlobalAssignment = !!globalAssignment;
+  const savedAssignment = globalAssignment ?? roleAssignments[0];
 
   return (
-    <form action={action} className="staff-form staff-assignment-add">
+    <form action={action} className="staff-form staff-assignment-add" onSubmit={(event) => submitPreservingScope(event, action)}>
       <input name="userId" type="hidden" value={memberId} />
       <label htmlFor={`assignment-role-${memberId}`}><span>เพิ่มบทบาท</span><select disabled={!activeRoles.length} id={`assignment-role-${memberId}`} name="roleId" onChange={(event) => setRoleId(event.target.value)} required value={selectedRole?.id ?? ""}>{activeRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix={`assignment-${memberId}`} key={selectedRole?.id ?? "no-role"} />
+      <ScopeFields branches={branches} containsOrganizationPermissions={roleContainsOrganizationPermissions(selectedRole)} idPrefix={`assignment-${memberId}`} initialBranchId={savedAssignment?.branchId} key={selectedRole?.id ?? "no-role"} />
       {hasGlobalAssignment ? <small className="staff-scope-note">บทบาทนี้มีสิทธิ์ทุกสาขาอยู่แล้ว หากเลือกเฉพาะสาขา ระบบจะเปลี่ยนขอบเขตเดิมให้เหลือสาขาที่เลือก</small> : null}
       <Feedback state={state} />
       <button className="secondary-button" disabled={pending || !activeRoles.length} type="submit">{pending ? "กำลังบันทึก…" : hasGlobalAssignment ? "บันทึกขอบเขตบทบาท" : "เพิ่มสิทธิ์ให้พนักงาน"}</button>
@@ -342,7 +358,7 @@ function StaffCard({
 
       <div className="staff-assignment-chips" aria-label={`บทบาทของ ${member.displayName}`}>
         {member.assignments.length ? member.assignments.map((assignment) => (
-          <span key={assignment.id}>{assignment.roleName}<small>{assignment.branchName ?? "ทุกสาขา"}</small></span>
+          <span key={assignment.id}>{assignment.roleName}<small>{assignment.branchId === null ? "ทุกสาขา" : assignment.branchName ?? "สาขาที่เลือก"}</small></span>
         )) : <span className="staff-empty-chip">ยังไม่มีบทบาท</span>}
       </div>
 

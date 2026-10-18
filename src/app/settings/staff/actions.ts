@@ -16,8 +16,10 @@ function readText(formData: FormData, key: string) {
 }
 
 function readScopeBranchId(formData: FormData) {
+  const scope = readText(formData, "scope");
+  if (scope === "organization") return null;
   const value = readText(formData, "branchId");
-  return value && value !== "ALL" ? value : null;
+  return scope === "branch" && value && value !== "ALL" ? value : undefined;
 }
 
 function isValidEmail(email: string) {
@@ -45,6 +47,8 @@ export async function createStaff(
   const pinConfirmation = readText(formData, "pinConfirmation");
   const roleId = readText(formData, "roleId");
   const branchId = readScopeBranchId(formData);
+
+  if (branchId === undefined) return { error: "กรุณาเลือกขอบเขตสิทธิ์และระบุสาขาให้ครบ" };
 
   if (!displayName || displayName.length > 100 || !isValidEmail(email)) {
     return { error: "กรอกชื่อและอีเมลของพนักงานให้ถูกต้อง" };
@@ -278,6 +282,8 @@ export async function addRoleAssignment(
   const roleId = readText(formData, "roleId");
   const branchId = readScopeBranchId(formData);
 
+  if (branchId === undefined) return { error: "กรุณาเลือกขอบเขตสิทธิ์และระบุสาขาให้ครบ" };
+
   const [target, role, branch] = await Promise.all([
     db.user.findFirst({
       where: { id: userId, organizationId: actor.organizationId },
@@ -356,8 +362,8 @@ export async function addRoleAssignment(
     refreshStaffPages();
     return {
       success: result.changedScope
-        ? `เปลี่ยน ${role.name} ของ ${target.displayName} ให้ใช้ได้เฉพาะสาขาที่เลือกแล้ว`
-        : `เพิ่มบทบาท ${role.name} ให้ ${target.displayName} แล้ว`,
+        ? `เปลี่ยน ${role.name} ของ ${target.displayName} ให้ใช้ได้เฉพาะสาขา ${branch?.name} แล้ว`
+        : `เพิ่มบทบาท ${role.name} ให้ ${target.displayName} แล้ว · ${branch ? `เฉพาะสาขา ${branch.name}` : "ทุกสาขา"}`,
     };
   } catch (error) {
     return { error: mutationError(error, "พนักงานมีบทบาทและขอบเขตนี้อยู่แล้ว") };
