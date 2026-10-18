@@ -34,7 +34,7 @@ export function MembershipForm({ defaults }: { defaults: { earnEveryBaht: number
   </form>;
 }
 
-export function TaxProfileForm({ allowTestTaxId = false, branchId, defaults }: { allowTestTaxId?: boolean; branchId: string; defaults?: { legalName: string; taxpayerId: string; address: string; branchNumber: string; isVatRegistered: boolean; vatRatePercent: number; taxIncluded: boolean; documentPrefix: string } }) {
+export function TaxProfileForm({ branchId, defaults }: { branchId: string; defaults?: { legalName: string; taxpayerId: string; address: string; branchNumber: string; isVatRegistered: boolean; vatRatePercent: number; taxIncluded: boolean; documentPrefix: string } }) {
   const [state, action, pending] = useActionState(saveTaxProfile, {});
   const [values, setValues] = useState({
     legalName: defaults?.legalName ?? "",
@@ -49,9 +49,8 @@ export function TaxProfileForm({ allowTestTaxId = false, branchId, defaults }: {
 
   return <form action={action} className="stacked-form">
     <input name="branchId" type="hidden" value={branchId} />
-    {allowTestTaxId ? <p className="configuration-notice" role="note">โหมดทดสอบ: ใส่ค่าเลขผู้เสียภาษีสมมติได้ ห้ามใช้ข้อมูลนี้ออกใบกำกับภาษีจริง</p> : null}
     <label><span>ชื่อผู้ประกอบการ/ร้าน</span><input autoComplete="organization" name="legalName" onChange={(event) => setValues((current) => ({ ...current, legalName: event.target.value }))} value={values.legalName} maxLength={200} placeholder="ชื่อร้านตามเอกสารภาษี" required type="text" /><small>กรอกได้ทั้งตัวอักษรและตัวเลข</small></label>
-    <label><span>เลขประจำตัวผู้เสียภาษี 13 หลัก</span><input name="taxpayerId" onChange={(event) => setValues((current) => ({ ...current, taxpayerId: event.target.value }))} value={values.taxpayerId} inputMode={allowTestTaxId ? "text" : "numeric"} maxLength={allowTestTaxId ? 50 : 13} pattern={allowTestTaxId ? undefined : "[0-9]{13}"} placeholder={allowTestTaxId ? "ค่าเลขสมมติสำหรับทดสอบ" : "เลข 13 หลัก"} required title={allowTestTaxId ? "โหมดทดสอบรับค่าได้ไม่เกิน 50 ตัวอักษร" : "กรอกเลขผู้เสียภาษี 13 หลักให้ถูกต้อง"} /><small>{allowTestTaxId ? "รับค่าใดก็ได้ไม่เกิน 50 ตัวอักษร เฉพาะโหมดทดสอบ" : "ต้องเป็นเลขผู้เสียภาษีที่ถูกต้อง 13 หลัก"}</small></label>
+    <label><span>เลขประจำตัวผู้เสียภาษี</span><input name="taxpayerId" onChange={(event) => setValues((current) => ({ ...current, taxpayerId: event.target.value }))} value={values.taxpayerId} type="text" maxLength={50} placeholder="เลข 13 หลัก หรือข้อมูลชั่วคราว" /><small>ใส่เลขสมมติหรือเว้นว่างแล้วบันทึกก่อนได้ แก้เป็นเลขจริงก่อนออกใบกำกับภาษี</small></label>
     <label><span>ที่อยู่ตามทะเบียน</span><textarea autoComplete="street-address" inputMode="text" name="address" onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} maxLength={500} placeholder="ที่อยู่ตามเอกสารภาษี" required rows={3} /><small>กรอกได้ทั้งตัวอักษรและตัวเลข</small></label>
     <label><span>รหัสสาขา (สำนักงานใหญ่ 00000)</span><input autoComplete="off" inputMode="numeric" maxLength={5} name="branchNumber" onChange={(event) => setValues((current) => ({ ...current, branchNumber: event.target.value }))} value={values.branchNumber} pattern="[0-9]{5}" placeholder="00000" required title="กรอกรหัสสาขาเป็นตัวเลข 5 หลัก" type="text" /></label>
     <label><span>คำนำหน้าเลขที่เอกสาร</span><input name="documentPrefix" onChange={(event) => setValues((current) => ({ ...current, documentPrefix: event.target.value }))} value={values.documentPrefix} maxLength={10} pattern="[A-Za-z0-9\x2d]+" placeholder="TAX" required /></label>

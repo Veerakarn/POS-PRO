@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireOrganizationPermission, requirePermission } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isTaxProfileTestModeEnabled, isThaiTaxId } from "@/lib/commerce-rules";
+import { isThaiTaxId } from "@/lib/commerce-rules";
 
 export type CommerceState = { error?: string; success?: string };
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
@@ -99,9 +99,7 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const branchId = text(data, "branchId");
   const user = await requirePermission("payment.manage", branchId);
   const legalName = text(data, "legalName");
-  const rawTaxpayerId = text(data, "taxpayerId");
-  const allowTestTaxId = isTaxProfileTestModeEnabled();
-  const taxpayerId = allowTestTaxId ? rawTaxpayerId : rawTaxpayerId.replace(/\D/g, "");
+  const taxpayerId = text(data, "taxpayerId");
   const address = text(data, "address");
   const branchNumber = text(data, "branchNumber");
   const prefix = text(data, "documentPrefix").toUpperCase();
@@ -110,9 +108,7 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
   const included = data.get("taxIncluded") === "on";
   if (legalName.length < 2 || legalName.length > 200) return { error: "ชื่อผู้ประกอบการต้องมี 2–200 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
   if (address.length < 5 || address.length > 500) return { error: "ที่อยู่ต้องมี 5–500 ตัวอักษร และกรอกได้ทั้งตัวอักษรหรือตัวเลข" };
-  if (allowTestTaxId ? (!taxpayerId || taxpayerId.length > 50) : !isThaiTaxId(taxpayerId)) {
-    return { error: allowTestTaxId ? "กรอกค่าเลขทดสอบไม่เกิน 50 ตัวอักษร" : "เลขประจำตัวผู้เสียภาษีต้องเป็นเลข 13 หลักที่ถูกต้อง" };
-  }
+  if (taxpayerId.length > 50) return { error: "เลขผู้เสียภาษีหรือข้อมูลชั่วคราวต้องไม่เกิน 50 ตัวอักษร" };
   if (!/^\d{5}$/.test(branchNumber)) return { error: "รหัสสาขาต้องเป็นตัวเลข 5 หลัก เช่น 00000" };
   if (!/^[A-Z0-9-]{1,10}$/.test(prefix) || !Number.isFinite(rate) || rate < 0 || rate > 20) return { error: "ตรวจคำนำหน้าเอกสารและอัตราภาษีอีกครั้ง" };
   try {
@@ -124,7 +120,9 @@ export async function saveTaxProfile(_: CommerceState, data: FormData): Promise<
     revalidatePath("/settings/tax");
     revalidatePath("/settings/readiness");
     revalidatePath("/pos");
-    return { success: "บันทึกข้อมูลผู้ขายภาษีแล้ว มีผลกับบิลที่เปิดใหม่" };
+    return { success: isThaiTaxId(taxpayerId)
+      ? "บันทึกข้อมูลผู้ขายภาษีแล้ว มีผลกับบิลที่เปิดใหม่"
+      : "บันทึกข้อมูลชั่วคราวแล้ว สามารถกลับมาแก้เลขผู้เสียภาษีก่อนออกใบกำกับภาษีได้" };
   } catch {
     return { error: "บันทึกข้อมูลภาษีไม่สำเร็จ" };
   }
@@ -146,6 +144,7 @@ export async function issueTaxInvoice(_: CommerceState, data: FormData): Promise
       await tx.$queryRaw`SELECT id FROM "TaxProfile" WHERE "branchId" = ${branchId} FOR UPDATE`;
       const profile = await tx.taxProfile.findUnique({ where: { branchId }, select: { id: true, legalName: true, taxpayerId: true, address: true, branchNumber: true, isVatRegistered: true, documentPrefix: true, nextDocumentNumber: true } });
       if (!profile?.isVatRegistered) throw new Error("สาขานี้ยังไม่ได้ระบุว่าจดทะเบียน VAT");
+      if (!isThaiTaxId(profile.taxpayerId)) throw new Error("ข้อมูลภาษีร้านยังเป็นข้อมูลชั่วคราว กรุณาแก้เลขผู้เสียภาษีของสาขาให้ถูกต้อง 13 หลักก่อนออกใบกำกับภาษี");
       if (await tx.taxInvoice.findUnique({ where: { billId }, select: { id: true } })) throw new Error("บิลนี้ออกใบกำกับภาษีแล้ว");
       const serial = profile.nextDocumentNumber;
       const invoiceNumber = `${profile.documentPrefix}-${new Date().getFullYear()}-${String(serial).padStart(6, "0")}`;

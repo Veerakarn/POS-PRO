@@ -5,13 +5,6 @@ export function normalizeThaiPhone(value: string) {
   return /^0[6-9]\d{8}$/.test(national) ? national : null;
 }
 
-export function isTaxProfileTestModeEnabled() {
-  const explicitlyEnabled = process.env.TAX_PROFILE_TEST_MODE === "true";
-  const isProduction = process.env.VERCEL_ENV === "production"
-    || (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== "preview");
-  return explicitlyEnabled && !isProduction;
-}
-
 export function calculateVat(baseSatang: number, rateBps: number, included: boolean) {
   if (!Number.isSafeInteger(baseSatang) || baseSatang < 0 || !Number.isInteger(rateBps) || rateBps < 0 || rateBps > 20_000) {
     throw new Error("Invalid VAT input");

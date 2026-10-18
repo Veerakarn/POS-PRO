@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { AppShell } from "@/components/app-shell";
 import { requireOrganizationPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isThaiTaxId } from "@/lib/commerce-rules";
 
 function Check({ ready, title, detail, href }: { ready: boolean; title: string; detail: string; href: string }) {
   return <li className="readiness-check">
@@ -70,7 +71,7 @@ export default async function ReadinessPage() {
             <Check ready={branch._count.tables > 0} title="โต๊ะและ QR" detail={`${branch._count.tables} โต๊ะที่เปิดใช้งาน`} href={`/settings/tables${suffix}`} />
             <Check ready={branch._count.stations > 0 && unassignedMenus[index] === 0} title="เมนูส่งถึงจุดผลิต" detail={`${branch._count.stations} จุดผลิต · ${unassignedMenus[index]} เมนูยังไม่มีจุดผลิตของสาขานี้`} href={`/settings/stations${suffix}`} />
             <Check ready={branch._count.paymentMethods > 0} title="ช่องทางรับเงิน" detail={`${branch._count.paymentMethods} ช่องทางที่พนักงานเลือกบันทึกรับชำระได้`} href={`/shifts${suffix}`} />
-            <Check ready={!!branch.taxProfile} title="ข้อมูลภาษีร้าน" detail={branch.taxProfile ? `${branch.taxProfile.legalName} · ${branch.taxProfile.isVatRegistered ? "จดทะเบียน VAT" : "ยังไม่ระบุจดทะเบียน VAT"}` : "ยังไม่ได้บันทึกชื่อ ที่อยู่ และเลขผู้เสียภาษีของสาขา"} href="/settings/tax" />
+            <Check ready={!!branch.taxProfile && isThaiTaxId(branch.taxProfile.taxpayerId)} title="ข้อมูลภาษีร้าน" detail={branch.taxProfile ? `${branch.taxProfile.legalName} · ${isThaiTaxId(branch.taxProfile.taxpayerId) ? (branch.taxProfile.isVatRegistered ? "จดทะเบียน VAT" : "ยังไม่ระบุจดทะเบียน VAT") : "บันทึกข้อมูลชั่วคราวแล้ว รอแก้เลขผู้เสียภาษีก่อนออกใบกำกับภาษี"}` : "ยังไม่ได้บันทึกชื่อ ที่อยู่ และเลขผู้เสียภาษีของสาขา"} href="/settings/tax" />
             <Check ready={branch.printers.length > 0 && offline.length === 0} title="การเชื่อมต่อเครื่องพิมพ์" detail={offline.length ? `Agent ไม่ติดต่อภายใน 90 วินาทีหรือมีข้อผิดพลาด: ${offline.map((printer) => printer.name).join(", ")}` : `${branch.printers.length} เครื่อง · สถานะ Agent ไม่ใช่การยืนยันว่ามีกระดาษหรือพิมพ์สำเร็จ`} href={`/settings/printers${suffix}`} />
             <Check ready={tableQr} title="QR พิมพ์เมื่อเปิดโต๊ะ" detail={tableQr ? "มีเส้นทาง QR ไปยังเครื่องพิมพ์แล้ว · ลองเปิดโต๊ะเพื่อยืนยันการพิมพ์จริง" : "ยังไม่ได้กำหนดเส้นทาง QR ไปยังเครื่องพิมพ์ความร้อน"} href={`/settings/printers${suffix}`} />
             <Check ready={receipt && branch.stations.length > 0 && missingStations.length === 0} title="เส้นทางใบเสร็จและใบครัว" detail={`${receipt ? "มี" : "ยังไม่มี"}เส้นทางใบเสร็จ · ${missingStations.length} จุดผลิตยังไม่มีเครื่องพิมพ์ที่ผูกกับ Agent`} href={`/settings/printers${suffix}`} />
