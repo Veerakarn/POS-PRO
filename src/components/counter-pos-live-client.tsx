@@ -272,11 +272,11 @@ export function CounterPosLiveClient({
               <p className={qrPrintFeedback.tone === "error" ? "form-error" : "form-success"} role="status">{qrPrintFeedback.message}</p>
             ) : null}
             <div className="session-qr-dialog-actions">
-              <button className="primary-button" onClick={() => printQrFromBrowser(sessionQr.tableName, sessionQr.image, sessionQr.sessionId)} type="button">
-                พิมพ์จากเครื่องนี้
+              <button className="primary-button" disabled={isQrPrinting} onClick={() => printQr(sessionQr.tableId, sessionQr.sessionId)} type="button">
+                {isQrPrinting ? "กำลังส่งพิมพ์…" : "พิมพ์ QR"}
               </button>
-              <button className="secondary-button" disabled={isQrPrinting} onClick={() => printQr(sessionQr.tableId, sessionQr.sessionId)} type="button">
-                {isQrPrinting ? "กำลังส่งพิมพ์…" : "ส่งพิมพ์เครื่องร้าน"}
+              <button className="secondary-button" onClick={() => printQrFromBrowser(sessionQr.tableName, sessionQr.image, sessionQr.sessionId)} type="button">
+                พิมพ์ผ่านเบราว์เซอร์
               </button>
               <button className="secondary-button" onClick={() => setSessionQr(null)} type="button">ปิด</button>
             </div>
@@ -373,8 +373,8 @@ export function CounterPosLiveClient({
                     <div className="counter-active-qr-details">
                       <p>ให้ลูกค้าสแกน QR นี้เพื่อสั่งอาหาร เป็นรหัสของรอบโต๊ะปัจจุบัน</p>
                       <button className="secondary-button" onClick={() => { if (selectedSessionId) showQr(selectedSessionId, selectedTable.id, selectedTable.name, selectedQrImage); }} type="button">ขยาย QR</button>
-                      <button className="primary-button" disabled={!selectedSessionId} onClick={() => { if (selectedSessionId) printQrFromBrowser(selectedTable.name, selectedQrImage, selectedSessionId); }} type="button">
-                        พิมพ์ QR
+                      <button className="primary-button" disabled={!selectedSessionId || isQrPrinting} onClick={() => { if (selectedSessionId) printQr(selectedTable.id, selectedSessionId); }} type="button">
+                        {isQrPrinting ? "กำลังส่งพิมพ์…" : "พิมพ์ QR"}
                       </button>
                     </div>
                   </div>
@@ -385,7 +385,7 @@ export function CounterPosLiveClient({
                       <button className="secondary-button" disabled={isQrPending} onClick={() => loadQr(selectedTable.id, selectedSessionId)} type="button">ลองโหลด QR อีกครั้ง</button>
                     ) : null}
                     <button className="primary-button" disabled={!selectedSessionId || isQrPrinting} onClick={() => { if (selectedSessionId) printQr(selectedTable.id, selectedSessionId); }} type="button">
-                      {isQrPrinting ? "กำลังส่งพิมพ์…" : "ส่งพิมพ์เครื่องร้าน"}
+                      {isQrPrinting ? "กำลังส่งพิมพ์…" : "พิมพ์ QR"}
                     </button>
                   </div>
                 )}
