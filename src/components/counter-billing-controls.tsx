@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { issueTaxInvoice } from "@/app/settings/commerce/actions";
@@ -22,6 +22,27 @@ import {
 import type { CounterPaymentOption, CounterTable } from "@/components/counter-pos-live-client";
 
 type Feedback = { message: string; tone: "success" | "error" };
+type TableOperation = "split" | "cancel" | "move" | "merge";
+
+function CounterOperationDialog({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
+
+  return (
+    <dialog aria-labelledby={titleId} className="pos-operation-dialog" onCancel={(event) => { event.preventDefault(); onClose(); }} ref={dialogRef}>
+      <header className="pos-operation-dialog-header">
+        <h3 id={titleId}>{title}</h3>
+        <button aria-label="ปิดหน้าต่าง" autoFocus className="pos-operation-dialog-close" onClick={onClose} type="button">×</button>
+      </header>
+      {children}
+    </dialog>
+  );
+}
 
 function money(satang: number) {
   return new Intl.NumberFormat("th-TH", {
@@ -82,6 +103,7 @@ export function CounterBillingControls({
   const [splitQuantities, setSplitQuantities] = useState<Record<string, number>>({});
   const [moveTarget, setMoveTarget] = useState("");
   const [mergeTarget, setMergeTarget] = useState("");
+  const [activeOperation, setActiveOperation] = useState<TableOperation | null>(null);
 
   const availableLines = useMemo(
     () => table.orderLines
@@ -122,7 +144,7 @@ export function CounterBillingControls({
     }
     run(
       () => createSplitCounterBill({ branchId, tableId: table.id, selections }),
-      () => setSplitQuantities({}),
+      () => { setSplitQuantities({}); setActiveOperation(null); },
     );
   }
 
@@ -145,11 +167,21 @@ export function CounterBillingControls({
         ) : null}
       </div>
 
-      {feedback ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
+      {feedback && !activeOperation ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
 
-      {canManagePayments && availableLines.length ? (
-        <details className="billing-details">
-          <summary>แยกบิลตามรายการ</summary>
+      {(canManagePayments && availableLines.length > 0) || (canManagePayments && cancelableLines.length > 0) || vacantTargets.length > 0 || (canManagePayments && activeTargets.length > 0) ? (
+        <div className="pos-operation-buttons">
+          {canManagePayments && availableLines.length ? <button className="secondary-button" disabled={isPending} onClick={() => { setFeedback(null); setActiveOperation("split"); }} type="button">แยกบิลตามรายการ</button> : null}
+          {canManagePayments && cancelableLines.length ? <button className="danger-button" disabled={isPending} onClick={() => { setFeedback(null); setActiveOperation("cancel"); }} type="button">ยกเลิกรายการ</button> : null}
+          {vacantTargets.length ? <button className="secondary-button" disabled={isPending} onClick={() => { setFeedback(null); setActiveOperation("move"); }} type="button">ย้ายโต๊ะ</button> : null}
+          {canManagePayments && activeTargets.length ? <button className="secondary-button" disabled={isPending} onClick={() => { setFeedback(null); setActiveOperation("merge"); }} type="button">รวมโต๊ะ</button> : null}
+        </div>
+      ) : null}
+
+      {activeOperation === "split" ? (
+        <CounterOperationDialog onClose={() => setActiveOperation(null)} title="แยกบิลตามรายการ">
+          <p className="pos-operation-dialog-description">เลือกจำนวนของแต่ละเมนูที่ต้องการแยกไปสร้างเป็นบิลใหม่</p>
+          {feedback ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
           <div className="split-bill-form">
             {availableLines.map((line) => {
               const selected = splitQuantities[line.id] ?? 0;
@@ -181,7 +213,39 @@ export function CounterBillingControls({
               {isPending ? "กำลังสร้าง…" : "สร้างบิลจากรายการที่เลือก"}
             </button>
           </div>
-        </details>
+        </CounterOperationDialog>
+      ) : null}
+
+      {activeOperation === "cancel" ? (
+        <CounterOperationDialog onClose={() => setActiveOperation(null)} title="ยกเลิกรายการอาหาร">
+          <p className="pos-operation-dialog-description">เลือกรายการที่ยังไม่ออกบิล แล้วระบุเหตุผลก่อนยกเลิก</p>
+          {feedback ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
+          <div className="cancel-item-list">
+            {cancelableLines.map((line) => <CancelItemControl branchId={branchId} disabled={isPending} itemId={line.id} itemName={line.name} key={line.id} onSuccess={() => setActiveOperation(null)} run={run} tableId={table.id} />)}
+          </div>
+        </CounterOperationDialog>
+      ) : null}
+
+      {activeOperation === "move" ? (
+        <CounterOperationDialog onClose={() => setActiveOperation(null)} title="ย้ายโต๊ะ">
+          <p className="pos-operation-dialog-description">ย้ายทั้งรอบโต๊ะ รวมรายการอาหารและคำขอจากลูกค้า ไปยังโต๊ะว่าง</p>
+          {feedback ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
+          <div className="table-operation-row">
+            <label><span>เลือกโต๊ะปลายทาง</span><select onChange={(event) => setMoveTarget(event.target.value)} value={moveTarget}><option value="">เลือกโต๊ะว่าง</option>{vacantTargets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></label>
+            <button className="primary-button" disabled={isPending || !moveTarget} onClick={() => run(() => moveCounterTable({ branchId, tableId: table.id, targetTableId: moveTarget }), () => { setMoveTarget(""); setActiveOperation(null); })} type="button">{isPending ? "กำลังย้าย…" : "ยืนยันย้ายโต๊ะ"}</button>
+          </div>
+        </CounterOperationDialog>
+      ) : null}
+
+      {activeOperation === "merge" ? (
+        <CounterOperationDialog onClose={() => setActiveOperation(null)} title="รวมโต๊ะ">
+          <p className="pos-operation-dialog-description">ย้ายบิล ออเดอร์ และคำขอทั้งหมดจากโต๊ะนี้ไปรวมกับโต๊ะที่เปิดอยู่</p>
+          {feedback ? <p className={`billing-feedback ${feedback.tone}`} role="status">{feedback.message}</p> : null}
+          <div className="table-operation-row">
+            <label><span>เลือกโต๊ะหลักที่เปิดอยู่</span><select onChange={(event) => setMergeTarget(event.target.value)} value={mergeTarget}><option value="">เลือกโต๊ะหลัก</option>{activeTargets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></label>
+            <button className="danger-button" disabled={isPending || !mergeTarget} onClick={() => run(() => mergeCounterTable({ branchId, tableId: table.id, targetTableId: mergeTarget }), () => { setMergeTarget(""); setActiveOperation(null); })} type="button">{isPending ? "กำลังรวม…" : "ยืนยันรวมโต๊ะ"}</button>
+          </div>
+        </CounterOperationDialog>
       ) : null}
 
       {table.bills.length ? (
@@ -201,60 +265,6 @@ export function CounterBillingControls({
         </div>
       ) : <p className="billing-empty">ยังไม่มีบิล กดออกบิลทั้งหมดหรือเลือกแยกบิล</p>}
 
-      {vacantTargets.length || (canManagePayments && (cancelableLines.length || activeTargets.length)) ? (
-        <details className="billing-details table-operation-panel">
-          <summary>{canManagePayments ? "ยกเลิกรายการ / ย้ายโต๊ะ / รวมโต๊ะ" : "ย้ายโต๊ะ"}</summary>
-          {canManagePayments && cancelableLines.length ? (
-            <div className="cancel-item-list">
-              {cancelableLines.map((line) => (
-                <CancelItemControl
-                  branchId={branchId}
-                  disabled={isPending}
-                  itemId={line.id}
-                  itemName={line.name}
-                  key={line.id}
-                  run={run}
-                  tableId={table.id}
-                />
-              ))}
-            </div>
-          ) : null}
-          {vacantTargets.length ? (
-            <div className="table-operation-row">
-              <label>
-                <span>ย้ายทั้งโต๊ะไปโต๊ะว่าง</span>
-                <select onChange={(event) => setMoveTarget(event.target.value)} value={moveTarget}>
-                  <option value="">เลือกโต๊ะปลายทาง</option>
-                  {vacantTargets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}
-                </select>
-              </label>
-              <button
-                className="secondary-button"
-                disabled={isPending || !moveTarget}
-                onClick={() => run(() => moveCounterTable({ branchId, tableId: table.id, targetTableId: moveTarget }), () => setMoveTarget(""))}
-                type="button"
-              >ย้ายโต๊ะ</button>
-            </div>
-          ) : null}
-          {canManagePayments && activeTargets.length ? (
-            <div className="table-operation-row">
-              <label>
-                <span>รวมรายการเข้ากับโต๊ะที่เปิดอยู่</span>
-                <select onChange={(event) => setMergeTarget(event.target.value)} value={mergeTarget}>
-                  <option value="">เลือกโต๊ะหลัก</option>
-                  {activeTargets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}
-                </select>
-              </label>
-              <button
-                className="danger-button"
-                disabled={isPending || !mergeTarget}
-                onClick={() => run(() => mergeCounterTable({ branchId, tableId: table.id, targetTableId: mergeTarget }), () => setMergeTarget(""))}
-                type="button"
-              >รวมโต๊ะ</button>
-            </div>
-          ) : null}
-        </details>
-      ) : null}
     </section>
   );
 }
@@ -392,7 +402,7 @@ function TaxInvoiceIssueForm({ branchId, billId }: { branchId: string; billId: s
   </details>;
 }
 
-function CancelItemControl({ branchId, tableId, itemId, itemName, disabled, run }: { branchId: string; tableId: string; itemId: string; itemName: string; disabled: boolean; run: (action: () => Promise<CounterActionResult>, onSuccess?: () => void) => void }) {
+function CancelItemControl({ branchId, tableId, itemId, itemName, disabled, onSuccess, run }: { branchId: string; tableId: string; itemId: string; itemName: string; disabled: boolean; onSuccess: () => void; run: (action: () => Promise<CounterActionResult>, onSuccess?: () => void) => void }) {
   const [reason, setReason] = useState("");
-  return <div className="cancel-item-row"><label><span>ยกเลิก {itemName}</span><input maxLength={200} minLength={3} onChange={(event) => setReason(event.target.value)} placeholder="เหตุผล" value={reason} /></label><button className="danger-button" disabled={disabled || reason.trim().length < 3} onClick={() => run(() => cancelCounterOrderItem({ branchId, tableId, orderItemId: itemId, reason }), () => setReason(""))} type="button">ยกเลิกรายการ</button></div>;
+  return <div className="cancel-item-row"><label><span>ยกเลิก {itemName}</span><input maxLength={200} minLength={3} onChange={(event) => setReason(event.target.value)} placeholder="เหตุผล" value={reason} /></label><button className="danger-button" disabled={disabled || reason.trim().length < 3} onClick={() => run(() => cancelCounterOrderItem({ branchId, tableId, orderItemId: itemId, reason }), () => { setReason(""); onSuccess(); })} type="button">ยกเลิกรายการ</button></div>;
 }

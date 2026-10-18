@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 import {
   getCounterTableQr,
   openCounterTable,
   reprintCounterTableQr,
-  submitCounterOrder,
 } from "@/app/pos/actions";
 import { CounterBillingControls } from "@/components/counter-billing-controls";
 
@@ -52,14 +52,6 @@ export type CounterBill = {
 
 export type CounterPaymentOption = { code: string; name: string; isCash: boolean };
 
-export type CounterMenuItem = {
-  id: string;
-  name: string;
-  category: string;
-  priceSatang: number;
-};
-
-type CartLine = CounterMenuItem & { quantity: number };
 type Feedback = { message: string; tone: "success" | "error" };
 type CounterActionResult = { error?: string; success?: string; warning?: string; qrDataUrl?: string; printQueued?: number; sessionId?: string };
 
@@ -88,16 +80,12 @@ function formatBaht(satang: number) {
   }).format(satang / 100);
 }
 
-function createIdempotencyKey() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 export function CounterPosLiveClient({
   branchId,
   branchName,
   organizationName,
   tables,
-  menuItems,
+  initialTableId,
   pendingServiceRequests,
   paymentMethods,
   hasOpenCashShift,
@@ -108,7 +96,7 @@ export function CounterPosLiveClient({
   branchName: string;
   organizationName: string;
   tables: CounterTable[];
-  menuItems: CounterMenuItem[];
+  initialTableId?: string;
   pendingServiceRequests: number;
   paymentMethods: CounterPaymentOption[];
   hasOpenCashShift: boolean;
@@ -116,16 +104,12 @@ export function CounterPosLiveClient({
   canManageServiceRequests: boolean;
 }) {
   const router = useRouter();
-  const [selectedTableId, setSelectedTableId] = useState(() => tables.find((table) => table.hasOpenSession)?.id ?? tables[0]?.id ?? "");
+  const [selectedTableId, setSelectedTableId] = useState(() => tables.find((table) => table.id === initialTableId)?.id ?? tables.find((table) => table.hasOpenSession)?.id ?? tables[0]?.id ?? "");
   const [filter, setFilter] = useState<CounterTableStatus | "ทั้งหมด">("ทั้งหมด");
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [category, setCategory] = useState("ทั้งหมด");
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [sessionQr, setSessionQr] = useState<{ sessionId: string; tableId: string; tableName: string; image: string; printQueued?: number; warning?: string } | null>(null);
   const [qrBySession, setQrBySession] = useState<Record<string, { image?: string; error?: string }>>({});
   const [qrPrintFeedback, setQrPrintFeedback] = useState<{ sessionId: string; message: string; tone: "success" | "error" } | null>(null);
-  const [orderIdempotencyKey, setOrderIdempotencyKey] = useState(createIdempotencyKey);
   const [isPending, startTransition] = useTransition();
   const [isQrPending, startQrTransition] = useTransition();
   const [isQrPrinting, startQrPrintTransition] = useTransition();
@@ -135,12 +119,6 @@ export function CounterPosLiveClient({
     () => tables.filter((table) => filter === "ทั้งหมด" || table.status === filter),
     [filter, tables],
   );
-  const categories = useMemo(
-    () => ["ทั้งหมด", ...Array.from(new Set(menuItems.map((item) => item.category)))],
-    [menuItems],
-  );
-  const visibleMenuItems = menuItems.filter((item) => category === "ทั้งหมด" || item.category === category);
-  const cartTotal = cart.reduce((total, item) => total + item.priceSatang * item.quantity, 0);
   const selectedSessionId = selectedTable?.sessionId ?? null;
   const selectedTableForQr = selectedTable?.id ?? null;
   const selectedQr = selectedSessionId ? qrBySession[selectedSessionId] : null;
@@ -190,8 +168,6 @@ export function CounterPosLiveClient({
 
   function selectTable(tableId: string) {
     setSelectedTableId(tableId);
-    setCart([]);
-    setIsMenuOpen(false);
     setFeedback(null);
     setQrPrintFeedback(null);
   }
@@ -272,37 +248,6 @@ export function CounterPosLiveClient({
     main.append(title, branch, table, qr, description, retry);
     document.body.replaceChildren(main);
     qr.src = image;
-  }
-
-  function addItem(item: CounterMenuItem) {
-    setCart((current) => {
-      const existing = current.find((line) => line.id === item.id);
-      if (!existing) return [...current, { ...item, quantity: 1 }];
-      return current.map((line) => line.id === item.id ? { ...line, quantity: line.quantity + 1 } : line);
-    });
-  }
-
-  function changeQuantity(id: string, amount: number) {
-    setCart((current) => current
-      .map((line) => line.id === id ? { ...line, quantity: line.quantity + amount } : line)
-      .filter((line) => line.quantity > 0));
-  }
-
-  function submitOrder() {
-    if (!cart.length) return;
-    run(
-      () => submitCounterOrder({
-        branchId,
-        tableId: selectedTable.id,
-        idempotencyKey: orderIdempotencyKey,
-        items: cart.map((line) => ({ menuItemId: line.id, quantity: line.quantity })),
-      }),
-      () => {
-        setCart([]);
-        setIsMenuOpen(false);
-        setOrderIdempotencyKey(createIdempotencyKey());
-      },
-    );
   }
 
   return (
@@ -463,35 +408,15 @@ export function CounterPosLiveClient({
               ) : <div className="empty-order"><p>ยังไม่มีรายการอาหารสำหรับโต๊ะนี้</p></div>}
 
               {selectedTable.status !== "ขอเช็กบิล" ? (
-                <button className="add-menu-button" disabled={isPending || !menuItems.length} onClick={() => setIsMenuOpen((open) => !open)} type="button">
-                  {isMenuOpen ? "ปิดรายการเมนู" : "+ เพิ่มรายการอาหาร"}
-                </button>
-              ) : null}
-
-              {isMenuOpen ? (
-                <section className="counter-menu-picker" aria-label="เลือกเมนูสำหรับโต๊ะ">
-                  <div className="counter-category-row">
-                    {categories.map((name) => <button className={category === name ? "filter-button active" : "filter-button"} key={name} onClick={() => setCategory(name)} type="button">{name}</button>)}
-                  </div>
-                  {visibleMenuItems.length ? <div className="counter-menu-grid">
-                    {visibleMenuItems.map((item) => (
-                      <button className="counter-menu-item" key={item.id} onClick={() => addItem(item)} type="button">
-                        <span>{item.category}</span><strong>{item.name}</strong><small>{formatBaht(item.priceSatang)}</small>
-                      </button>
-                    ))}
-                  </div> : <p className="empty-state">ยังไม่มีเมนูที่พร้อมขาย</p>}
-                  {cart.length ? <div className="counter-cart">
-                    {cart.map((item) => <div className="counter-cart-line" key={item.id}><span>{item.name}</span><div><button aria-label={`ลดจำนวน ${item.name}`} onClick={() => changeQuantity(item.id, -1)} type="button">−</button><strong>{item.quantity}</strong><button aria-label={`เพิ่มจำนวน ${item.name}`} onClick={() => changeQuantity(item.id, 1)} type="button">+</button></div></div>)}
-                    <div className="counter-cart-total"><span>เพิ่มในออเดอร์</span><strong>{formatBaht(cartTotal)}</strong></div>
-                    <button className="primary-button" disabled={isPending} onClick={submitOrder} type="button">{isPending ? "กำลังส่งออเดอร์…" : "ส่งออเดอร์เข้าครัว"}</button>
-                  </div> : null}
-                </section>
+                <Link className="add-menu-button" href={`/pos/${branchId}/add-items/${selectedTable.id}`}>
+                  + เพิ่มรายการอาหาร
+                </Link>
               ) : null}
 
               {selectedTable.totalSatang ? <CounterBillingControls branchId={branchId} canManagePayments={canManagePayments} hasOpenCashShift={hasOpenCashShift} paymentMethods={paymentMethods} table={selectedTable} tables={tables} /> : null}
             </>
           )}
-          <p className="panel-note">เมนูพร้อมขาย: {menuItems.length} รายการ · ข้อมูลทุกการทำงานบันทึกลง Neon</p>
+          <p className="panel-note">ข้อมูลทุกการทำงานบันทึกลง Neon</p>
         </aside>
       </div>
     </main>

@@ -21,11 +21,13 @@ function formatUpdatedAt(date: Date) {
 
 export default async function CounterPosPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ branchId: string }>;
+  searchParams: Promise<{ table?: string }>;
 }) {
   await connection();
-  const { branchId } = await params;
+  const [{ branchId }, query] = await Promise.all([params, searchParams]);
   const user = await requirePermission("pos.use", branchId);
   const canManagePayments = userHasPermission(user.roleAssignments, "payment.manage", branchId);
   const canManageServiceRequests = userHasPermission(user.roleAssignments, "service.manage", branchId);
@@ -105,26 +107,9 @@ export default async function CounterPosPage({
   });
   if (!branch) redirect("/settings/branches");
 
-  const [menuItems, pendingServiceRequests] = await Promise.all([
-    db.menuItem.findMany({
-      where: { organizationId: user.organizationId, isActive: true, category: { isActive: true } },
-      orderBy: [{ category: { sortOrder: "asc" } }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        priceSatang: true,
-        category: { select: { name: true } },
-      },
-    }),
-    canManageServiceRequests
-      ? db.serviceRequest.count({
-          where: {
-            branchId: branch.id,
-            status: { in: ["OPEN", "ACKNOWLEDGED"] },
-          },
-        })
-      : Promise.resolve(0),
-  ]);
+  const pendingServiceRequests = canManageServiceRequests
+    ? await db.serviceRequest.count({ where: { branchId: branch.id, status: { in: ["OPEN", "ACKNOWLEDGED"] } } })
+    : 0;
 
   const tables: CounterTable[] = branch.tables.map((table) => {
     const session = table.sessions[0];
@@ -182,9 +167,9 @@ export default async function CounterPosPage({
         branchId={branch.id}
         branchName={branch.name}
         organizationName={branch.organization.name}
+        initialTableId={query.table}
         canManagePayments={canManagePayments}
         canManageServiceRequests={canManageServiceRequests}
-        menuItems={menuItems.map((item) => ({ ...item, category: item.category.name }))}
         pendingServiceRequests={pendingServiceRequests}
         paymentMethods={branch.paymentMethods}
         hasOpenCashShift={branch.cashShifts.length > 0}
