@@ -1,4 +1,4 @@
-const CACHE_NAME = "pospro-shell-v1";
+const CACHE_NAME = "pospro-shell-v2";
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {
@@ -24,7 +24,10 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icon-")) {
     event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
-      if (response.ok) void caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+      if (response.ok) {
+        const responseToCache = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache)));
+      }
       return response;
     })));
   }
