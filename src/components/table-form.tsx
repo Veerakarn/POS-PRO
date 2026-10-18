@@ -30,7 +30,7 @@ export function TableForm({ branches, selectedBranchId }: { branches: BranchOpti
         </label>
         <label>
           <span>รหัสโต๊ะ</span>
-          <input autoCapitalize="characters" name="code" pattern="[A-Z0-9_-]{1,12}" placeholder="A01" required />
+          <input autoCapitalize="characters" name="code" pattern="[A-Z0-9_\x2d]{1,12}" placeholder="A01" required />
         </label>
       </div>
       <label>

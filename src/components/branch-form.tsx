@@ -17,7 +17,7 @@ export function BranchForm() {
       </label>
       <label>
         <span>รหัสสาขา</span>
-        <input autoCapitalize="characters" name="code" pattern="[A-Z0-9_-]{2,12}" placeholder="ASK01" required />
+        <input autoCapitalize="characters" name="code" pattern="[A-Z0-9_\x2d]{2,12}" placeholder="ASK01" required />
         <small>ใช้ภาษาอังกฤษ ตัวเลข _ หรือ - เช่น ASK01</small>
       </label>
       <div className="form-grid">
