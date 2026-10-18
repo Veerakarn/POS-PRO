@@ -53,9 +53,9 @@ function documentBuffers(document, printer) {
   const chunks = [Buffer.concat([ESC, Buffer.from("@")])];
   chunks.push(Buffer.concat([ESC, Buffer.from("a"), Buffer.from([1])]));
   chunks.push(Buffer.concat([ESC, Buffer.from("E"), Buffer.from([1])]));
-  chunks.push(textLine(document.title || "POS@PRO", codePage));
+  chunks.push(textLine(document.type === "TABLE_QR" ? document.organizationName || document.title || "POS@PRO" : document.title || "POS@PRO", codePage));
   chunks.push(Buffer.concat([ESC, Buffer.from("E"), Buffer.from([0])]));
-  chunks.push(textLine(document.branchName || "", codePage));
+  chunks.push(textLine(document.type === "TABLE_QR" && document.branchName ? `สาขา ${document.branchName}` : document.branchName || "", codePage));
   chunks.push(Buffer.concat([ESC, Buffer.from("a"), Buffer.from([0])]));
   chunks.push(textLine(rule(width), codePage));
 

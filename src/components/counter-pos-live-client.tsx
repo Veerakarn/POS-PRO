@@ -95,6 +95,7 @@ function createIdempotencyKey() {
 export function CounterPosLiveClient({
   branchId,
   branchName,
+  organizationName,
   tables,
   menuItems,
   pendingServiceRequests,
@@ -105,6 +106,7 @@ export function CounterPosLiveClient({
 }: {
   branchId: string;
   branchName: string;
+  organizationName: string;
   tables: CounterTable[];
   menuItems: CounterMenuItem[];
   pendingServiceRequests: number;
@@ -243,18 +245,21 @@ export function CounterPosLiveClient({
     }
     printWindow.opener = null;
     const document = printWindow.document;
-    document.title = `QR ${tableName}`;
+    document.title = `${organizationName} · ${branchName} · QR ${tableName}`;
     const charset = document.createElement("meta");
     charset.setAttribute("charset", "utf-8");
     document.head.append(charset);
     const style = document.createElement("style");
-    style.textContent = "@page{size:80mm 110mm;margin:4mm}body{margin:0;color:#17251c;font-family:Arial,Tahoma,sans-serif;text-align:center}main{width:72mm;max-width:100%;margin:0 auto}h1{margin:0 0 4mm;font-size:16px}h2{margin:0 0 3mm;font-size:20px}p{margin:2mm 0;font-size:11px;line-height:1.5}img{display:block;width:58mm;height:58mm;max-width:100%;margin:0 auto;image-rendering:pixelated}button{margin-top:8mm;padding:10px 16px;border:1px solid #777;border-radius:6px;background:white;font:inherit}@media print{button{display:none}}";
+    style.textContent = "@page{size:80mm 110mm;margin:4mm}body{margin:0;color:#17251c;font-family:Arial,Tahoma,sans-serif;text-align:center}main{width:72mm;max-width:100%;margin:0 auto}h1{margin:0 0 1mm;font-size:17px;font-weight:700}h2{margin:0 0 3mm;font-size:20px}.branch{margin:0 0 4mm;font-size:12px;font-weight:600}p{margin:2mm 0;font-size:11px;line-height:1.5}img{display:block;width:58mm;height:58mm;max-width:100%;margin:0 auto;image-rendering:pixelated}button{margin-top:8mm;padding:10px 16px;border:1px solid #777;border-radius:6px;background:white;font:inherit}@media print{button{display:none}}";
     document.head.append(style);
     const main = document.createElement("main");
     const title = document.createElement("h1");
-    title.textContent = branchName;
+    title.textContent = organizationName;
     const table = document.createElement("h2");
     table.textContent = tableName;
+    const branch = document.createElement("p");
+    branch.className = "branch";
+    branch.textContent = `สาขา ${branchName}`;
     const description = document.createElement("p");
     description.textContent = "สแกน QR เพื่อสั่งอาหาร · ใช้ได้เฉพาะรอบโต๊ะนี้";
     const qr = document.createElement("img");
@@ -264,7 +269,7 @@ export function CounterPosLiveClient({
     retry.type = "button";
     retry.textContent = "พิมพ์อีกครั้ง";
     retry.onclick = () => printWindow.print();
-    main.append(title, table, qr, description, retry);
+    main.append(title, branch, table, qr, description, retry);
     document.body.replaceChildren(main);
     qr.src = image;
   }

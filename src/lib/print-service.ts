@@ -37,6 +37,7 @@ export type TableQrDocument = {
   type: "TABLE_QR";
   title: string;
   branchName: string;
+  organizationName: string;
   tableName: string;
   url: string;
   createdAt: string;
@@ -222,6 +223,7 @@ export async function enqueueTableSessionQr(tx: TransactionClient, input: {
   sessionId: string;
   tableName: string;
   branchName: string;
+  organizationName: string;
   url: string;
   createdAt: Date;
   reprintId?: string;
@@ -251,6 +253,7 @@ export async function enqueueTableSessionQr(tx: TransactionClient, input: {
         type: "TABLE_QR",
         title: "QR สั่งอาหารประจำโต๊ะ",
         branchName: input.branchName,
+        organizationName: input.organizationName,
         tableName: input.tableName,
         url: input.url,
         createdAt: input.createdAt.toISOString(),

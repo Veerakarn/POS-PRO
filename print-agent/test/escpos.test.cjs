@@ -16,7 +16,10 @@ test("rejects unknown document formats", () => {
 });
 
 test("renders a session QR with ESC/POS QR commands", () => {
-  const bytes = renderEscPos({ version: 1, type: "TABLE_QR", title: "QR โต๊ะ", branchName: "Branch", tableName: "A1", url: "https://example.com/q?session=abc", createdAt: "2026-10-14T00:00:00.000Z", copies: 1 }, { paperWidth: 58, codePage: "UTF-8" });
+  const bytes = renderEscPos({ version: 1, type: "TABLE_QR", title: "QR โต๊ะ", organizationName: "Restaurant", branchName: "Branch", tableName: "A1", url: "https://example.com/q?session=abc", createdAt: "2026-10-14T00:00:00.000Z", copies: 1 }, { paperWidth: 58, codePage: "UTF-8" });
+  assert.match(bytes.toString("utf8"), /Restaurant/);
+  assert.match(bytes.toString("utf8"), /สาขา Branch/);
+  assert.match(bytes.toString("utf8"), /โต๊ะ A1/);
   assert.match(bytes.toString("utf8"), /สแกนเพื่อสั่งอาหาร/);
   assert.ok(bytes.includes(Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30])));
 });

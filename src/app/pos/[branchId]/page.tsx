@@ -181,6 +181,7 @@ export default async function CounterPosPage({
       <CounterPosLiveClient
         branchId={branch.id}
         branchName={branch.name}
+        organizationName={branch.organization.name}
         canManagePayments={canManagePayments}
         canManageServiceRequests={canManageServiceRequests}
         menuItems={menuItems.map((item) => ({ ...item, category: item.category.name }))}

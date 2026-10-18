@@ -71,7 +71,7 @@ async function findCounterTable(input: CounterTableInput, organizationId: string
         select: {
           code: true,
           name: true,
-          organization: { select: { slug: true } },
+          organization: { select: { name: true, slug: true } },
         },
       },
     },
@@ -170,6 +170,7 @@ export async function openCounterTable(input: CounterTableInput): Promise<Counte
         sessionId: result.sessionId,
         tableName: table.name,
         branchName: table.branch.name,
+        organizationName: table.branch.organization.name,
         url: qrUrl,
         createdAt: new Date(),
       }), { maxWait: 10_000, timeout: 15_000 });
@@ -233,6 +234,7 @@ export async function reprintCounterTableQr(input: CounterSessionInput): Promise
         sessionId: session.id,
         tableName: table.name,
         branchName: table.branch.name,
+        organizationName: table.branch.organization.name,
         url: qrUrl,
         createdAt: session.openedAt,
         reprintId: randomUUID(),
