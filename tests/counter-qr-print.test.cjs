@@ -68,11 +68,12 @@ for (const image of [true, false]) {
   });
 }
 
-test("QR dialog primary action prints through agent; browser printing is explicitly secondary", async () => {
+test("QR dialog prints through agent and has no browser-print action", async () => {
   const f = fixture({ dialog: true });
   const primary = f.buttons.find((b) => b.props.children === "พิมพ์ QR");
   assert.equal(primary.props.className, "primary-button");
-  assert.equal(f.buttons.find((b) => b.props.children === "พิมพ์ผ่านเบราว์เซอร์").props.className, "secondary-button");
+  assert.equal(f.buttons.find((b) => b.props.children === "พิมพ์ผ่านเบราว์เซอร์"), undefined);
+  assert.doesNotMatch(readFileSync(resolve(__dirname, "../src/components/counter-pos-live-client.tsx"), "utf8"), /printQrFromBrowser|window\.open|\.print\(/);
   primary.props.onClick();
   await Promise.all(f.transitions);
   assert.equal(f.calls.length, 1);
