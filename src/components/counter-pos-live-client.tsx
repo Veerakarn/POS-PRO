@@ -11,6 +11,7 @@ import {
   reprintCounterTableQr,
 } from "@/app/pos/actions";
 import { CounterBillingControls } from "@/components/counter-billing-controls";
+import { PosIcon } from "@/components/pos-icon";
 
 export type CounterTableStatus = "ว่าง" | "กำลังสั่ง" | "รออาหาร" | "ขอเช็กบิล";
 
@@ -105,6 +106,9 @@ export function CounterPosLiveClient({
   const router = useRouter();
   const [selectedTableId, setSelectedTableId] = useState(() => tables.find((table) => table.id === initialTableId)?.id ?? tables.find((table) => table.hasOpenSession)?.id ?? tables[0]?.id ?? "");
   const [filter, setFilter] = useState<CounterTableStatus | "ทั้งหมด">("ทั้งหมด");
+  const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [tableView, setTableView] = useState<"tables" | "detail">(initialTableId ? "detail" : "tables");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [sessionQr, setSessionQr] = useState<{ sessionId: string; tableId: string; tableName: string; image: string; printQueued?: number; warning?: string } | null>(null);
   const [qrBySession, setQrBySession] = useState<Record<string, { image?: string; error?: string }>>({});
@@ -115,9 +119,11 @@ export function CounterPosLiveClient({
 
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? tables[0];
   const visibleTables = useMemo(
-    () => tables.filter((table) => filter === "ทั้งหมด" || table.status === filter),
-    [filter, tables],
+    () => tables.filter((table) => (filter === "ทั้งหมด" || table.status === filter) && `${table.name} ${table.code}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())),
+    [filter, tables, search],
   );
+  const availableCount = tables.filter((table) => table.status === "ว่าง").length;
+  const checkCount = tables.filter((table) => table.status === "ขอเช็กบิล").length;
   const selectedSessionId = selectedTable?.sessionId ?? null;
   const selectedTableForQr = selectedTable?.id ?? null;
   const selectedQr = selectedSessionId ? qrBySession[selectedSessionId] : null;
@@ -143,7 +149,7 @@ export function CounterPosLiveClient({
 
   useEffect(() => {
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible" && !document.querySelector('[role="dialog"], dialog[open]')) router.refresh();
     };
     const refreshTimer = window.setInterval(refreshWhenVisible, 5_000);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -167,6 +173,7 @@ export function CounterPosLiveClient({
 
   function selectTable(tableId: string) {
     setSelectedTableId(tableId);
+    setTableView("detail");
     setFeedback(null);
     setQrPrintFeedback(null);
   }
@@ -213,7 +220,7 @@ export function CounterPosLiveClient({
   }
 
   return (
-    <main className="pos-page">
+    <main className="pos-page pos-workspace">
       {sessionQr ? (
         <div className="session-qr-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setSessionQr(null);
@@ -244,12 +251,12 @@ export function CounterPosLiveClient({
       ) : null}
       <header className="pos-header">
         <div>
-          <p className="eyebrow">หน้าร้าน · {branchName}</p>
-          <h1>Counter POS</h1>
-          <span className="tablet-staff-label">โหมดพนักงาน · แท็บเล็ต</span>
+          <p className="eyebrow">COUNTER POS <span> / {branchName}</span></p>
+          <h1>เคาน์เตอร์<span className="pos-live-indicator"><i /> อัปเดตสด</span></h1>
+          <p className="pos-header-description">จัดการโต๊ะ รับออเดอร์ และชำระเงิน</p>
         </div>
         <div className="pos-actions">
-          {canManageServiceRequests ? <a className="secondary-button" href="/requests">▣ คำขอจากโต๊ะ <span>{pendingServiceRequests}</span></a> : null}
+          {canManageServiceRequests ? <Link className="secondary-button pos-service-link" href="/requests"><PosIcon name="receipt" />คำขอจากโต๊ะ <span>{pendingServiceRequests}</span></Link> : null}
           <button
             className="primary-button compact"
             disabled={isPending || !tables.some((table) => table.status === "ว่าง")}
@@ -267,17 +274,31 @@ export function CounterPosLiveClient({
         </div>
       </header>
 
-      <div className="pos-layout">
-        <section className="table-board">
-          <div className="filter-row" aria-label="กรองสถานะโต๊ะ">
+      <div className="pos-overview" aria-label="ภาพรวมโต๊ะ">
+        <div><span className="pos-overview-icon"><PosIcon name="tables" /></span><span>โต๊ะทั้งหมด<strong>{tables.length}<small> โต๊ะ</small></strong></span></div>
+        <div><span className="pos-overview-dot available" /><span>โต๊ะว่าง<strong>{availableCount}<small> โต๊ะ</small></strong></span></div>
+        <div><span className="pos-overview-dot occupied" /><span>กำลังใช้งาน<strong>{tables.length - availableCount}<small> โต๊ะ</small></strong></span></div>
+        <div><span className="pos-overview-dot check" /><span>รอเช็กบิล<strong>{checkCount}<small> โต๊ะ</small></strong></span></div>
+      </div>
+
+      <div className="pos-view-switch" aria-label="มุมมอง Counter POS">
+        <button aria-pressed={tableView === "tables"} className={tableView === "tables" ? "active" : ""} onClick={() => setTableView("tables")} type="button"><PosIcon name="tables" />โต๊ะทั้งหมด</button>
+        <button aria-pressed={tableView === "detail"} className={tableView === "detail" ? "active" : ""} onClick={() => setTableView("detail")} type="button"><PosIcon name="receipt" />{selectedTable.name}</button>
+      </div>
+
+      <div className={`pos-layout pos-view-${tableView}`}>
+        <section className="table-board" aria-label="ผังโต๊ะ">
+          <div className="pos-board-heading"><div><h2>เลือกโต๊ะ</h2><span>{visibleTables.length} จาก {tables.length} โต๊ะ</span></div><div className="pos-board-tools"><label className="pos-search"><PosIcon name="search" /><input aria-label="ค้นหาโต๊ะ" placeholder="ค้นหาชื่อ / เลขโต๊ะ" type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label><button className={`pos-filter-toggle${filtersOpen ? " active" : ""}`} aria-label="กรองสถานะโต๊ะ" aria-expanded={filtersOpen} aria-controls="pos-status-filters" type="button" onClick={() => setFiltersOpen(!filtersOpen)}><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 6h16M7 12h13m-10 6h10" /></svg></button></div></div>
+          <div className={`filter-row${filtersOpen ? " is-filter-open" : ""}`} id="pos-status-filters" aria-label="กรองสถานะโต๊ะ">
             {(["ทั้งหมด", "ว่าง", "กำลังสั่ง", "รออาหาร", "ขอเช็กบิล"] as const).map((status) => (
               <button
                 className={filter === status ? "filter-button active" : "filter-button"}
+                aria-pressed={filter === status}
                 key={status}
                 onClick={() => setFilter(status)}
                 type="button"
               >
-                {status}
+                {status}<span>{status === "ทั้งหมด" ? tables.length : tables.filter((table) => table.status === status).length}</span>
               </button>
             ))}
           </div>
@@ -285,24 +306,26 @@ export function CounterPosLiveClient({
             {visibleTables.map((table) => (
               <button
                 className={`table-card ${statusClass[table.status]} ${selectedTable.id === table.id ? "selected" : ""}`}
+                aria-pressed={selectedTable.id === table.id}
                 key={table.id}
                 onClick={() => selectTable(table.id)}
                 type="button"
               >
-                <span className="table-status">{table.status}</span>
+                <div className="pos-table-card-top"><span className="table-status">{table.status}</span><span className="pos-table-selected" aria-hidden="true">{selectedTable.id === table.id ? "✓" : <PosIcon name="tables" />}</span></div>
                 <strong>{table.name}</strong>
-                <small>{table.code} · {table.capacity} ที่นั่ง</small>
-                <span>{table.totalSatang ? formatBaht(table.totalSatang) : "พร้อมรับลูกค้า"}</span>
+                <small><PosIcon name="guests" />{table.capacity} ที่นั่ง <span>· {table.code}</span></small>
+                <span className="pos-table-amount">{table.totalSatang ? formatBaht(table.totalSatang) : table.hasOpenSession ? "ยังไม่มีรายการ" : "พร้อมรับลูกค้า"}</span>
                 {table.updatedAtLabel ? <em>{table.updatedAtLabel}</em> : null}
               </button>
             ))}
           </div>
+          {!visibleTables.length ? <div className="pos-table-empty"><PosIcon name="search" /><h3>ไม่พบโต๊ะที่ค้นหา</h3><p>ลองเปลี่ยนคำค้นหรือเลือกสถานะอื่น</p><button type="button" className="secondary-button" onClick={() => { setSearch(""); setFilter("ทั้งหมด"); }}>แสดงโต๊ะทั้งหมด</button></div> : null}
         </section>
 
-        <aside className="pos-order-panel">
+        <aside className="pos-order-panel" aria-label={`รายละเอียด ${selectedTable.name}`}>
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">รายการโต๊ะ</p>
+              <p className="eyebrow">รายละเอียดโต๊ะ</p>
               <h2>{selectedTable.name}</h2>
             </div>
             <span className={`status-pill ${statusClass[selectedTable.status]}`}>{selectedTable.status}</span>
@@ -312,13 +335,14 @@ export function CounterPosLiveClient({
 
           {!selectedTable.hasOpenSession ? (
             <div className="empty-order">
-              <p>โต๊ะนี้พร้อมรับลูกค้า</p>
+              <span className="pos-empty-icon"><PosIcon name="tables" /></span><h3>พร้อมต้อนรับลูกค้า</h3><p>{selectedTable.capacity} ที่นั่ง · เปิดโต๊ะเพื่อเริ่มรับออเดอร์</p>
               <button className="primary-button" disabled={isPending} onClick={() => openTable(selectedTable)} type="button">
                 {isPending ? "กำลังเปิดโต๊ะ…" : "เปิดโต๊ะนี้"}
               </button>
             </div>
           ) : (
             <>
+              <details className="pos-qr-details" open key={selectedTable.id}><summary><PosIcon name="qr" /><span>QR ประจำโต๊ะ</span><span className="pos-qr-chevron" aria-hidden="true">⌄</span></summary>
               <section aria-label={`QR ของ ${selectedTable.name}`} className="counter-active-qr">
                 <div className="counter-active-qr-heading">
                   <div><p className="eyebrow">QR ประจำรอบโต๊ะ</p><h3>{selectedTable.name}</h3></div>
@@ -350,6 +374,8 @@ export function CounterPosLiveClient({
                 )}
                 {qrPrintFeedback?.sessionId === selectedSessionId ? <p className={`pos-feedback ${qrPrintFeedback.tone}`} role="status">{qrPrintFeedback.message}</p> : null}
               </section>
+              </details>
+              <div className="pos-order-list-heading"><h3>รายการอาหาร</h3><span>{selectedTable.orderLines.reduce((sum, item) => sum + item.quantity, 0)} รายการ</span></div>
               {selectedTable.orderLines.length ? (
                 <div className="order-lines">
                   {selectedTable.orderLines.map((item) => (
@@ -364,18 +390,14 @@ export function CounterPosLiveClient({
                     </div>
                   ))}
                 </div>
-              ) : <div className="empty-order"><p>ยังไม่มีรายการอาหารสำหรับโต๊ะนี้</p></div>}
+              ) : <div className="empty-order pos-empty-items"><PosIcon name="food" /><p>ยังไม่มีรายการอาหาร</p><small>แตะ “เพิ่มอาหาร” เพื่อเริ่มรับออเดอร์</small></div>}
 
-              {selectedTable.status !== "ขอเช็กบิล" ? (
-                <Link className="add-menu-button" href={`/pos/${branchId}/add-items/${selectedTable.id}`}>
-                  + เพิ่มรายการอาหาร
-                </Link>
-              ) : null}
+              <div className="pos-order-quick-action"><div><span>ยอดรายการอาหาร</span><strong>{formatBaht(selectedTable.totalSatang)}</strong></div>{selectedTable.status !== "ขอเช็กบิล" ? <Link className="primary-button" href={`/pos/${branchId}/add-items/${selectedTable.id}`}><span aria-hidden="true">+</span> เพิ่มอาหาร</Link> : <span className="pos-check-note">รอชำระเงิน</span>}</div>
 
               {selectedTable.totalSatang ? <CounterBillingControls branchId={branchId} canManagePayments={canManagePayments} hasOpenCashShift={hasOpenCashShift} paymentMethods={paymentMethods} table={selectedTable} tables={tables} /> : null}
             </>
           )}
-          <p className="panel-note">ข้อมูลทุกการทำงานบันทึกลง Neon</p>
+          <p className="panel-note">เลือกโต๊ะเพื่อดูออเดอร์และจัดการรายการได้ที่นี่</p>
         </aside>
       </div>
     </main>

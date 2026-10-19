@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AccountMenu } from "@/components/account-menu";
+import { WorkspaceHeaderBrand, WorkspaceNavigation } from "@/components/workspace-navigation";
 import { AppNavigation } from "@/components/app-navigation";
 import { defaultLandingRoute, getCurrentUser } from "@/lib/auth";
 import { userHasPermission } from "@/lib/authorization";
@@ -47,10 +48,11 @@ export async function AppShell({
   const resolvedUserName = currentUser?.displayName ?? userName;
 
   return (
-    <div className="app-shell">
+    <WorkspaceNavigation>
       <AppNavigation homeHref={currentUser ? defaultLandingRoute(currentUser) : "/"} items={allowedNavigation} organizationName={organizationName} />
       <div className="app-shell-content">
         <header className="topbar">
+          <WorkspaceHeaderBrand organizationName={organizationName} branchName={branchName} />
           <div className="topbar-context">
             <span>พื้นที่ทำงาน</span>
             <strong><span aria-hidden="true" className="topbar-status-dot" />สาขา {branchName}</strong>
@@ -61,6 +63,6 @@ export async function AppShell({
         </header>
         {children}
       </div>
-    </div>
+    </WorkspaceNavigation>
   );
 }

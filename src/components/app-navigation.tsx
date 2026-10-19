@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useWorkspaceNavigation } from "@/components/workspace-navigation";
 
 type NavigationItem = {
   href: string;
@@ -20,7 +20,7 @@ export function AppNavigation({
   organizationName: string;
 }) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const { open: isOpen, setOpen: setIsOpen } = useWorkspaceNavigation();
   const groups = [...new Set(items.map((item) => item.group))];
 
   return (
@@ -35,7 +35,7 @@ export function AppNavigation({
           aria-expanded={isOpen}
           aria-label={isOpen ? "ปิดเมนู" : "เปิดเมนู"}
           className="sidebar-toggle"
-          onClick={() => setIsOpen((open) => !open)}
+          onClick={() => setIsOpen(!isOpen)}
           type="button"
         >
           <span aria-hidden="true">☰</span> เมนู

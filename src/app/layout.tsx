@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PwaRegistration } from "@/components/pwa-registration";
 
 import "./globals.css";
+import "./pos-workspace.css";
 
 export const metadata: Metadata = {
   title: "POS@PRO",

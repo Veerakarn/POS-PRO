@@ -1,0 +1,17 @@
+{
+  "results": [
+    "iPad landscape: table grid and order detail appear together without overflow",
+    "A single white header opens and closes the green left navigation",
+    "Table search, empty state, reset and status counts work",
+    "iPad portrait keeps table and QR details side by side; navigation closes with Escape",
+    "Opening a table creates one real session and displays its QR",
+    "Menu search and categories preserve cart; 44px quantity buttons update the total",
+    "Real order submission persists 2 dishes / 3 portions at the correct total",
+    "Returning to the table shows the submitted order in portrait detail view",
+    "No horizontal overflow at 768, 834, 1024, 1194, 1366 and 390px widths",
+    "No browser JavaScript errors"
+  ],
+  "errors": [],
+  "passed": true,
+  "timestamp": "2026-10-19T20:15:17.735Z"
+}
