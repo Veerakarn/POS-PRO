@@ -1,5 +1,4 @@
 /* Counter POS: table overview and touch-friendly order entry. */
-.workspace-header-brand, .workspace-menu-backdrop { display: none; }
 .pos-header-description { margin: 6px 0 0; color: #8d9b92; font-size: 11px; }
 .pos-board-tools { display: flex; align-items: center; justify-content: flex-end; gap: 7px; min-width: 0; }
 .pos-board-heading > .pos-board-tools { display: flex; flex: 1; align-items: center; gap: 7px; }
@@ -123,17 +122,6 @@
 .pos-workspace :is(button, a, summary):focus-visible, .counter-add-items-page :is(button, a):focus-visible { outline: 2px solid #387c51; outline-offset: 3px; }
 
 @media (min-width: 681px) and (max-width: 1366px) {
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) { display: block; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .app-sidebar { height: auto; min-height: 0; box-shadow: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading { min-height: 58px; padding: 10px 24px; justify-content: space-between; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading .brand-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading .brand-copy small { display: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-toggle { display: inline-flex; min-height: 44px; padding: 0 14px; color: #e1f1e7; background: #ffffff12; border: 1px solid #ffffff20; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-nav { display: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-group + .sidebar-group { margin-top: 0; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-link { min-height: 46px; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-footer { display: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .topbar { min-height: 58px; padding: 0 24px; }
   .pos-workspace, .counter-add-items-page { padding: 24px; }
   .pos-search input { font-size: 16px; }
   .pos-workspace .pos-order-panel, .counter-add-cart-panel { top: 74px; max-height: calc(100dvh - 94px); }
@@ -181,26 +169,6 @@
 
 /* iPad reference layout: one header, optional left navigation, compact table board. */
 @media (min-width: 681px) and (max-width: 1366px) {
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) { min-height: 100dvh; background: #f3f7f4; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .app-sidebar { display: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .topbar { top: 10px; min-height: 68px; margin: 10px 14px 0; padding: 0 18px; border: 1px solid #e7ebe7; border-radius: 12px; background: #fff; box-shadow: 0 3px 3px #243c2e19; backdrop-filter: none; flex-wrap: nowrap; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .topbar-context { display: none; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .workspace-header-brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
-  .workspace-header-brand > div { display: grid; gap: 4px; min-width: 0; }.workspace-header-brand strong { max-width: 250px; color: #1f3027; font-size: 20px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.workspace-header-brand small { color: #829186; font-size: 10px; }
-  .workspace-menu-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 78px; min-height: 44px; padding: 0 13px; border: 1px solid #e0e5e0; border-radius: 10px; background: #fff; color: #34483a; box-shadow: 0 2px 2px #213a2a16; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-  .workspace-menu-toggle:focus-visible { outline: 2px solid #2e825b; outline-offset: 3px; }
-  .app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .account-controls { gap: 12px; }.app-shell:has(:is(.pos-workspace, .counter-add-items-page)) .account-trigger { padding: 5px 12px 5px 6px; border-radius: 10px; background: white; border-color: #e1e5e1; box-shadow: 0 2px 2px #213a2a10; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) { display: grid; grid-template-columns: 190px minmax(0, 1fr); align-items: start; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .app-sidebar { display: flex; height: 100dvh; position: sticky; top: 0; border-radius: 0; background: linear-gradient(150deg, #0a5946, #063d30 72%, #052d25); }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading { min-height: 100px; padding: 22px 16px; border: 0; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading .brand { gap: 8px; }.app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading .brand-copy strong { font-size: 16px; }.app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-heading .brand-copy small { display: block; font-size: 8px; margin-top: 4px; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-toggle { display: none; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-nav { display: block; flex: 1; max-height: none; padding: 15px 10px; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-group { display: block; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-group + .sidebar-group { margin-top: 22px; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-group-label { margin-left: 12px; color: #b0d7c8; font-size: 10px; letter-spacing: .03em; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-link { min-height: 44px; padding: 9px 12px; gap: 6px; font-size: 11px; border-radius: 7px; color: #e6f3eb; }.app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-link-mark, .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-chevron { display: none; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-link.active { background: #469c7c; border-color: transparent; box-shadow: inset 3px 0 #a6dcc4; }
   .pos-workspace { max-width: 1600px; padding: 25px 34px 30px; }
   .pos-workspace .pos-header { margin: 0 0 18px; align-items: end; }.pos-workspace .pos-header h1 { gap: 12px; font-size: 28px; }.pos-workspace .pos-header .eyebrow { margin-bottom: 5px; font-size: 9px; }.pos-workspace .pos-actions > :is(a, button) { min-height: 44px; padding: 0 14px; font-size: 11px; border-radius: 8px; }.pos-service-link > svg { display: none; }
   .pos-workspace .pos-overview, .pos-workspace .pos-view-switch { display: none; }
@@ -225,9 +193,4 @@
 }
 @media (min-width: 681px) and (max-width: 1000px) {
   .pos-workspace { padding: 22px 18px; }.pos-workspace .pos-layout { grid-template-columns: minmax(0, 1fr) 242px; gap: 12px; }.pos-workspace .table-board { padding: 13px; }.pos-workspace .table-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }.pos-workspace .table-card { min-height: 142px; padding: 11px 8px; }.pos-workspace .table-card > strong { font-size: 25px; }.pos-board-heading > div:first-child { display: none; }.pos-board-tools { width: 100%; }.pos-board-tools .pos-search { width: 100%; }.pos-workspace .pos-order-panel { padding: 13px 10px; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) { display: block; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .app-sidebar { position: fixed; z-index: 80; inset: 0 auto 0 0; width: 230px; box-shadow: 12px 0 35px #103f2a22; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .workspace-menu-backdrop { display: block; position: fixed; inset: 0; z-index: 70; width: 100%; height: 100%; padding: 0; border: 0; background: #18372b55; cursor: pointer; }
-  .app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-toggle { display: flex; min-width: 35px; min-height: 44px; padding: 0 7px; background: #ffffff15; font-size: 0; }.app-shell.navigation-open:has(:is(.pos-workspace, .counter-add-items-page)) .sidebar-toggle > span { font-size: 17px; }
-  .workspace-header-brand strong { max-width: 190px; font-size: 18px; }
 }

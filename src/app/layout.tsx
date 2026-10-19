@@ -5,6 +5,7 @@ import { PwaRegistration } from "@/components/pwa-registration";
 
 import "./globals.css";
 import "./pos-workspace.css";
+import "./workspace-shell.css";
 
 export const metadata: Metadata = {
   title: "POS@PRO",

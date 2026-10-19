@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "results": [
+    "Shared header, navigation and active page: /dashboard",
+    "Shared header, navigation and active page: /reports",
+    "Shared header, navigation and active page: /audit",
+    "Shared header, navigation and active page: /pos",
+    "Shared header, navigation and active page: /kitchen",
+    "Shared header, navigation and active page: /requests",
+    "Shared header, navigation and active page: /shifts",
+    "Shared header, navigation and active page: /sales",
+    "Shared header, navigation and active page: /inventory",
+    "Shared header, navigation and active page: /settings/tables",
+    "Shared header, navigation and active page: /settings/menu",
+    "Shared header, navigation and active page: /settings/promotions",
+    "Shared header, navigation and active page: /settings/members",
+    "Shared header, navigation and active page: /settings/tax",
+    "Shared header, navigation and active page: /settings/stations",
+    "Shared header, navigation and active page: /settings/printers",
+    "Shared header, navigation and active page: /settings/branches",
+    "Shared header, navigation and active page: /settings/staff",
+    "Shared header, navigation and active page: /settings/readiness",
+    "Selecting a navigation link changes page and closes the menu",
+    "Navigation works and header fits at 834px",
+    "Navigation works and header fits at 390px",
+    "Navigation works and header fits at 1440px",
+    "Profile drawer still opens from the shared header",
+    "No browser JavaScript errors"
+  ],
+  "errors": [],
+  "timestamp": "2026-10-19T20:37:27.733Z"
+}

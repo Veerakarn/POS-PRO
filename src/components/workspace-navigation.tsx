@@ -23,10 +23,10 @@ export function WorkspaceNavigation({ children }: { children: ReactNode }) {
   }, [open]);
   useEffect(() => {
     const root = frame.current;
-    if (!open || !root?.querySelector(".pos-workspace, .counter-add-items-page")) return;
+    if (!open || !root) return;
     const content = root.querySelector<HTMLElement>(".app-shell-content");
     if (!content) return;
-    const media = window.matchMedia("(min-width: 681px) and (max-width: 1000px)");
+    const media = window.matchMedia("(max-width: 1000px)");
     const previousOverflow = document.body.style.overflow;
     function updateOverlay() {
       if (!content) return;
@@ -43,7 +43,7 @@ export function WorkspaceNavigation({ children }: { children: ReactNode }) {
       if (media.matches) root?.querySelector<HTMLButtonElement>(".workspace-menu-toggle")?.focus();
     };
   }, [open]);
-  return <NavigationContext.Provider value={{ open, setOpen }}><div ref={frame} className={`app-shell${open ? " navigation-open" : ""}`}>
+  return <NavigationContext.Provider value={{ open, setOpen }}><div ref={frame} className={`app-shell workspace-shell${open ? " navigation-open" : ""}`}>
     {children}
     <button className="workspace-menu-backdrop" aria-label="ปิดเมนูด้านข้าง" type="button" tabIndex={-1} onClick={() => { setOpen(false); frame.current?.querySelector<HTMLButtonElement>(".workspace-menu-toggle")?.focus(); }} />
   </div></NavigationContext.Provider>;
