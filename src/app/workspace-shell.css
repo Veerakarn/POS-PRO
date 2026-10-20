@@ -64,6 +64,11 @@
 .workspace-shell.navigation-open .sidebar-link.active { background: #469c7c; border-color: transparent; box-shadow: inset 3px 0 #a6dcc4; }
 .workspace-shell.navigation-open .sidebar-footer { display: none; }
 
+/* Desktop windows keep navigation pinned; touch screens retain the iPad menu. */
+@media (min-width: 1280px) and (pointer: fine) {
+  .workspace-shell .workspace-menu-toggle { display: none; }
+}
+
 @media (min-width: 1001px) and (max-width: 1366px) {
   .app-shell.workspace-shell.navigation-open { grid-template-columns: 190px minmax(0, 1fr); }
   .workspace-shell.navigation-open .sidebar-link { font-size: 11px; }

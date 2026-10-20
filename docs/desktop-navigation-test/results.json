@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "results": [
+    "Wide desktop pins navigation and Escape cannot collapse it",
+    "Navigation stays visible after changing pages on desktop",
+    "Narrowing the window collapses navigation, including after manually opening it",
+    "Large iPad touch screens retain the collapsible menu",
+    "No browser JavaScript errors"
+  ],
+  "errors": [],
+  "timestamp": "2026-10-19T21:09:18.942Z"
+}

@@ -20,7 +20,7 @@ export function AppNavigation({
   organizationName: string;
 }) {
   const pathname = usePathname();
-  const { open: isOpen, setOpen: setIsOpen } = useWorkspaceNavigation();
+  const { open: isOpen, pinned, setOpen: setIsOpen } = useWorkspaceNavigation();
   const groups = [...new Set(items.map((item) => item.group))];
 
   return (
@@ -30,7 +30,7 @@ export function AppNavigation({
           <span className="brand-mark">P</span>
           <span className="brand-copy"><strong>{organizationName}</strong><small>POS WORKSPACE</small></span>
         </Link>
-        <button
+        {!pinned ? <button
           aria-controls="app-sidebar-nav"
           aria-expanded={isOpen}
           aria-label={isOpen ? "ปิดเมนู" : "เปิดเมนู"}
@@ -39,7 +39,7 @@ export function AppNavigation({
           type="button"
         >
           <span aria-hidden="true">☰</span> เมนู
-        </button>
+        </button> : null}
       </div>
       <nav aria-label="เมนูหลัก" className="sidebar-nav" id="app-sidebar-nav">
         {groups.map((group) => (
