@@ -62,7 +62,7 @@ function fixture(initialBranches = []) {
   const form = new FormData();
   Object.entries({ userId: "staff", roleId: role.id, scope: "branch", branchId: "branch-b", displayName: "พนักงานทดสอบ", email: "staff@example.test", pin: "482937", pinConfirmation: "482937" })
     .forEach(([key, value]) => form.set(key, value));
-  function render() {
+  function render(avatarData) {
     const { StaffManagement } = load("../src/components/staff-management.tsx", {
       "@/app/settings/staff/actions": actions,
       "@/lib/permissions": permissions,
@@ -71,6 +71,7 @@ function fixture(initialBranches = []) {
       organizationName: "ร้านทดสอบ", currentUserId: "owner", branches,
       roles: [{ ...role, id: "unassigned", name: "บทบาทอื่น" }, role],
       staff: [{ id: "staff", displayName: "พนักงานทดสอบ", email: "staff@example.test", isActive: true, mustChangePin: false,
+        avatarData,
         assignments: assignments.map((item) => ({ ...item, roleName: role.name, roleIsSystem: false, branchName: branches.find((branch) => branch.id === item.branchId)?.name ?? null })),
       }],
     }));
@@ -83,6 +84,45 @@ function input(html, id) {
   assert.ok(result, `Missing input ${id}`);
   return result;
 }
+
+test("staff cards display saved profile images", () => {
+  const avatar = "data:image/png;base64,iVBORw0KGgo=";
+  const html = fixture().render(avatar);
+  assert.match(html, /class="staff-avatar"[^>]*><img/);
+  assert.ok(html.includes(`src="${avatar}"`));
+});
+
+for (const avatar of [null, undefined, ""]) {
+  test(`staff cards retain initials without a profile image (${String(avatar)})`, () => {
+    assert.match(fixture().render(avatar), /class="staff-avatar"[^>]*>พ<\/div>/);
+  });
+}
+
+test("staff page fetches and forwards each employee's avatar within the authorized organization", async () => {
+  const avatar = "data:image/png;base64,iVBORw0KGgo=";
+  const { default: Page } = load("../src/app/settings/staff/page.tsx", {
+    "next/navigation": { redirect: () => assert.fail("Unexpected redirect") },
+    "next/server": { connection: async () => {} },
+    "@/lib/auth": { requireOrganizationPermission: async (permission) => {
+      assert.equal(permission, "user.manage");
+      return { id: "owner", organizationId: "shop", displayName: "Owner" };
+    } },
+    "@/lib/db": { db: { organization: { findUnique: async ({ where, select }) => {
+      assert.equal(where.id, "shop");
+      assert.equal(select.users.select.avatarData, true);
+      return { name: "Shop", branches: [], roles: [], users: [
+        { id: "a", displayName: "Alice", email: "a@example.test", avatarData: avatar, roleAssignments: [] },
+        { id: "b", displayName: "Bob", email: "b@example.test", avatarData: null, roleAssignments: [] },
+      ] };
+    } } } },
+    "@/components/app-shell": { AppShell: "div" },
+    "@/components/staff-management": { StaffManagement: "staff-fixture" },
+  });
+  const tree = await Page();
+  const staff = tree.props.children.props.children.find((child) => child.type === "staff-fixture").props.staff;
+  assert.equal(staff[0].avatarData, avatar);
+  assert.equal(staff[1].avatarData, null);
+});
 
 test("reloading a saved branch assignment selects its role and branch even with organization permissions", () => {
   const html = fixture(["branch-b"]).render();

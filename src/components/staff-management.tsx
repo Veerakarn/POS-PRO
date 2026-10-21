@@ -45,6 +45,7 @@ type StaffMember = {
   id: string;
   displayName: string;
   email: string;
+  avatarData?: string | null;
   isActive: boolean;
   mustChangePin: boolean;
   assignments: StaffAssignment[];
@@ -345,7 +346,11 @@ function StaffCard({
   return (
     <article className={`staff-card ${member.isActive ? "is-active" : "is-inactive"}`}>
       <header className="staff-card-header">
-        <div className="staff-avatar" aria-hidden="true">{member.displayName.trim().charAt(0).toUpperCase() || "P"}</div>
+        <div className="staff-avatar" aria-hidden="true">
+          {/* Profile images are resized and re-encoded before storage. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {member.avatarData ? <img src={member.avatarData} alt="" width={43} height={43} /> : member.displayName.trim().charAt(0).toUpperCase() || "P"}
+        </div>
         <div className="staff-card-identity">
           <div className="staff-title-line"><h3>{member.displayName}</h3>{isCurrentUser ? <span className="staff-you-badge">คุณ</span> : null}</div>
           <p>{member.email}</p>

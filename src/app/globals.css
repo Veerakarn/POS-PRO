@@ -338,6 +338,7 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .staff-card.is-inactive, .staff-role-card.is-inactive { background: #f8faf8; border-style: dashed; }
 .staff-card-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 13px; }
 .staff-avatar { display: grid; width: 43px; height: 43px; place-items: center; color: white; background: var(--moss); border-radius: 12px; font-size: 17px; font-weight: 900; }
+.staff-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .staff-card.is-inactive .staff-avatar { color: #55615a; background: #dce2de; }
 .staff-card-identity { min-width: 0; }
 .staff-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }

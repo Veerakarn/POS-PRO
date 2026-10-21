@@ -39,6 +39,7 @@ export default async function StaffPage() {
           id: true,
           displayName: true,
           email: true,
+          avatarData: true,
           isActive: true,
           mustChangePin: true,
           roleAssignments: {
@@ -92,6 +93,7 @@ export default async function StaffPage() {
             id: staff.id,
             displayName: staff.displayName,
             email: staff.email,
+            avatarData: staff.avatarData,
             isActive: staff.isActive,
             mustChangePin: staff.mustChangePin,
             assignments: staff.roleAssignments.map((assignment) => ({
