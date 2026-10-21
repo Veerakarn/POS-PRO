@@ -44,6 +44,7 @@ export function KitchenDisplayClient({
   function renderTickets(tickets: KitchenTicket[], stationId: string | null) {
     return groupKitchenOrders(tickets).map((ticket) => {
       const hasNew = ticket.lines.some((line) => line.status === "NEW");
+      const nextStatus = hasNew ? "ACKNOWLEDGED" : "SERVED";
       return <article className={`kitchen-ticket${trackingEnabled && !hasNew ? " acknowledged" : ""}`} key={ticket.orderId}>
         <div className="ticket-top"><strong>โต๊ะ: {ticket.tableName}</strong><span>#{ticket.orderNumber}</span></div>
         <ul className="kitchen-order-lines">{ticket.lines.map((line) => <li key={line.id}>
@@ -52,7 +53,10 @@ export function KitchenDisplayClient({
           {trackingEnabled ? <small>{orderItemStatusLabels[line.status] ?? line.status}</small> : null}
         </li>)}</ul>
         <footer><span className="kitchen-wait-time">◷ {ticket.createdAtLabel}</span>
-          {trackingEnabled ? <button disabled={pending} onClick={() => run(() => updateKitchenOrder({ branchId, orderId: ticket.orderId, stationId, status: hasNew ? "ACKNOWLEDGED" : "SERVED" }))} type="button">
+          {trackingEnabled ? <button disabled={pending} onClick={() => {
+            if (nextStatus === "SERVED" && !window.confirm(`ยืนยันว่าเสิร์ฟออเดอร์ #${ticket.orderNumber} โต๊ะ ${ticket.tableName} แล้ว?`)) return;
+            run(() => updateKitchenOrder({ branchId, orderId: ticket.orderId, stationId, status: nextStatus }));
+          }} type="button">
             {pending ? "กำลังบันทึก…" : hasNew ? "รับออเดอร์" : "เสิร์ฟแล้ว"}
           </button> : null}
         </footer>
@@ -80,7 +84,7 @@ export function KitchenDisplayClient({
       </header>
 
       <section className="kitchen-tracking-settings">
-        <div><strong>ติดตามสถานะอาหารให้ลูกค้า</strong><p>{trackingEnabled ? "เปิดอยู่: กดรับออเดอร์และเสิร์ฟแล้ว ลูกค้าจะเห็นสถานะอัตโนมัติ" : "ปิดอยู่: ไม่ต้องกดสถานะ และซ่อนสถานะอาหารจากหน้าลูกค้า"}</p><small>เมื่อเปิดกลับ รายการที่ยังไม่ได้กดเสิร์ฟจะกลับมารอจัดการตามสถานะเดิม</small></div>
+        <div><strong>ติดตามสถานะอาหารให้ลูกค้า</strong><p>{trackingEnabled ? "เปิดอยู่: กดรับออเดอร์และเสิร์ฟแล้ว ลูกค้าจะเห็นสถานะอัตโนมัติ" : "ปิดอยู่: ไม่ต้องกดสถานะ และซ่อนสถานะอาหารจากหน้าลูกค้า"}</p><small>ออเดอร์ที่รับแล้วจะอยู่จนกว่าจะกดเสิร์ฟ รายการที่เสิร์ฟแล้วจะไม่กลับมาแสดงเมื่อสลับการตั้งค่า</small></div>
         <button aria-checked={trackingEnabled} role="switch" className="secondary-button" disabled={pending} onClick={() => run(() => setKitchenTracking({ branchId, enabled: !trackingEnabled }))} type="button">{trackingEnabled ? "ปิดการติดตามสถานะ" : "เปิดการติดตามสถานะ"}</button>
       </section>
       {feedback.error ? <p className="form-error" role="alert">{feedback.error}</p> : null}

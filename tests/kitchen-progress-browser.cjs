@@ -80,7 +80,7 @@ async function main() {
         res.end(JSON.stringify({ enabled, orders: enabled ? [{ id: "order1", orderNumber: 20, items: lines }] : [] })); return;
       }
       res.end(JSON.stringify({ branchId: "branch", branchName: "สาขาทดสอบ", trackingEnabled: enabled, unroutedTickets: [], stations:
-        [{ id: "kitchen", name: "ครัว", kind: "ครัว" }, { id: "bar", name: "บาร์", kind: "บาร์" }].map(station => ({ ...station, tickets: lines.filter(line => line.station === station.id && (!enabled || line.status !== "SERVED")) })) })); return;
+        [{ id: "kitchen", name: "ครัว", kind: "ครัว" }, { id: "bar", name: "บาร์", kind: "บาร์" }].map(station => ({ ...station, tickets: lines.filter(line => line.station === station.id && line.status !== "SERVED" && line.status !== "CANCELLED") })) })); return;
     }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end('<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>');
@@ -104,7 +104,12 @@ async function main() {
     await kitchen.screenshot({ path: join(tmpdir(), "pospro-kitchen-progress.png"), fullPage: true });
     await board.getByRole("button", { name: "รับออเดอร์", exact: true }).click();
     await board.getByRole("button", { name: "เสิร์ฟแล้ว", exact: true }).waitFor();
+    assert.equal(await board.locator(".kitchen-ticket").count(), 1);
     await customer.getByText("รับออเดอร์แล้ว", { exact: true }).first().waitFor({ timeout: 15000 });
+    kitchen.once("dialog", dialog => dialog.dismiss());
+    await board.getByRole("button", { name: "เสิร์ฟแล้ว", exact: true }).click();
+    assert.equal(await board.locator(".kitchen-ticket").count(), 1);
+    kitchen.once("dialog", dialog => dialog.accept());
     await board.getByRole("button", { name: "เสิร์ฟแล้ว", exact: true }).click();
     await board.getByText("ไม่มีรายการค้างในจุดผลิตนี้").waitFor();
     await customer.getByText("เสิร์ฟแล้ว", { exact: true }).first().waitFor({ timeout: 15000 });
@@ -113,12 +118,14 @@ async function main() {
     await customer.screenshot({ path: join(tmpdir(), "pospro-customer-progress.png"), fullPage: true });
     await kitchen.getByRole("switch").click();
     await kitchen.getByRole("switch", { checked: false }).waitFor();
+    assert.equal(await board.locator(".kitchen-ticket").count(), 0);
     assert.equal(await kitchen.getByRole("button", { name: /^(รับออเดอร์|เสิร์ฟแล้ว)$/ }).count(), 0);
     await customer.locator(".customer-order-progress").waitFor({ state: "hidden", timeout: 15000 });
     await kitchen.reload();
     await kitchen.getByRole("switch", { checked: false }).waitFor();
     await kitchen.getByRole("switch").click();
     await kitchen.getByRole("switch", { checked: true }).waitFor();
+    assert.equal(await board.locator(".kitchen-ticket").count(), 0);
     await customer.locator(".customer-order-progress").waitFor({ timeout: 15000 });
     assert.equal(await customer.getByText("เสิร์ฟแล้ว", { exact: true }).count(), 2);
     await kitchen.setViewportSize({ width: 390, height: 844 });

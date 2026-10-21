@@ -50,7 +50,7 @@ export default async function KitchenPage({
 
   const orderItems = await db.orderItem.findMany({
     where: {
-      status: { notIn: branch.orderStatusTrackingEnabled ? ["CANCELLED", "SERVED"] : ["CANCELLED"] },
+      status: { notIn: ["CANCELLED", "SERVED"] },
       order: {
         branchId: branch.id,
         status: { not: "CANCELLED" },

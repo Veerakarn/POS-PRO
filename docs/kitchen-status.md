@@ -3,7 +3,8 @@
 - Orders are grouped by `Order.id` within each production station. Separate submissions at the same table remain separate cards.
 - The kitchen team uses its existing branch-scoped `kitchen.view` permission to receive (`NEW` → `ACKNOWLEDGED`) and serve (`ACKNOWLEDGED` / `PREPARING` / `READY` → `SERVED`) that station's items. Cancelled items and closed table sessions cannot be updated.
 - Item status is shared across stations if the same menu item routes to multiple stations. Serving it from one station completes that item everywhere.
-- The branch switch is persisted in `Branch.orderStatusTrackingEnabled` (default enabled). Disabling hides controls and customer progress without marking orders served. Cards stay until the table closes. Enabling again resumes saved item statuses.
+- The branch switch is persisted in `Branch.orderStatusTrackingEnabled` (default enabled). Disabling hides controls and customer progress without marking orders served. Unserved cards stay until the table closes; served and cancelled items stay out of the queue regardless of the switch. Enabling again resumes saved item statuses.
+- Serving requires confirmation so a repeated click immediately after receiving cannot mark the same order served by accident.
 - Customers poll every 10 seconds while the page is visible, using the active table QR secret and session nonce. Closed or invalid sessions return no orders. Status requests expose no billing or customer account information.
 
 ## Deployment
