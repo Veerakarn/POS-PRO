@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { requestQrService, submitQrOrder } from "@/app/q/actions";
 import { demoCategories, demoMenu, formatBaht, type MenuItem } from "@/lib/demo-data";
+import { CustomerOrderProgress } from "@/components/customer-order-progress";
 
 export type OrderingMenuItem = {
   id: string;
@@ -160,6 +161,7 @@ export function OrderingClient({
 
       {notice ? <p className="ordering-feedback success-notice" role="status">{notice}</p> : null}
       {orderError ? <p className="ordering-feedback form-error ordering-error" role="alert">{orderError}</p> : null}
+      {orderingContext ? <CustomerOrderProgress context={{ ...orderingContext, tableCode }} refreshKey={idempotencyKey} /> : null}
 
       <div className="ordering-layout">
         <aside className="category-rail" aria-label="หมวดหมู่อาหาร">

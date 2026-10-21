@@ -5,7 +5,7 @@ export const permissionCatalog = [
   { key: "user.manage", label: "จัดการพนักงาน", description: "บัญชี บทบาท PIN และสิทธิ์", scope: "organization" },
   { key: "table.manage", label: "จัดการโต๊ะและ QR", description: "โต๊ะและ QR ภายในสาขา", scope: "branch" },
   { key: "pos.use", label: "ใช้งาน Counter POS", description: "เปิดโต๊ะและรับออเดอร์ที่เคาน์เตอร์", scope: "branch" },
-  { key: "kitchen.view", label: "ดูคิวครัวและบาร์", description: "ดูรายการที่ต้องผลิตในครัวหรือบาร์", scope: "branch" },
+  { key: "kitchen.view", label: "จัดการคิวครัวและบาร์", description: "ดูคิว รับออเดอร์ บันทึกเสิร์ฟ และเปิด–ปิดสถานะลูกค้าในสาขา", scope: "branch" },
   { key: "service.manage", label: "ดูแลคำขอจากโต๊ะ", description: "รับเรื่องเรียกพนักงานและเช็กบิล", scope: "branch" },
   { key: "payment.manage", label: "รับชำระเงิน", description: "เช็กบิลและบันทึกการชำระ", scope: "branch" },
   { key: "inventory.manage", label: "วัตถุดิบและสต็อก", description: "รับเข้า ตรวจนับ ของเสีย และต้นทุน", scope: "branch" },

@@ -37,6 +37,7 @@ export default async function KitchenPage({
     select: {
       id: true,
       name: true,
+      orderStatusTrackingEnabled: true,
       organization: { select: { name: true } },
       stations: {
         where: { isActive: true },
@@ -49,7 +50,7 @@ export default async function KitchenPage({
 
   const orderItems = await db.orderItem.findMany({
     where: {
-      status: { not: "CANCELLED" },
+      status: { notIn: branch.orderStatusTrackingEnabled ? ["CANCELLED", "SERVED"] : ["CANCELLED"] },
       order: {
         branchId: branch.id,
         status: { not: "CANCELLED" },
@@ -61,6 +62,8 @@ export default async function KitchenPage({
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      orderId: true,
+      status: true,
       nameSnapshot: true,
       quantity: true,
       note: true,
@@ -68,6 +71,7 @@ export default async function KitchenPage({
       order: {
         select: {
           orderNumber: true,
+          createdAt: true,
           tableSession: { select: { table: { select: { name: true, code: true } } } },
         },
       },
@@ -87,13 +91,15 @@ export default async function KitchenPage({
   for (const item of orderItems) {
     const ticket: KitchenTicket = {
       id: item.id,
+      orderId: item.orderId,
+      status: item.status,
       name: item.nameSnapshot,
       quantity: item.quantity,
       note: item.note,
       tableName: item.order.tableSession.table.name,
       tableCode: item.order.tableSession.table.code,
       orderNumber: item.order.orderNumber,
-      createdAtLabel: formatTicketTime(item.createdAt),
+      createdAtLabel: formatTicketTime(item.order.createdAt),
     };
     if (!item.menuItem.stationRoutes.length) {
       unroutedTickets.push(ticket);
@@ -111,7 +117,7 @@ export default async function KitchenPage({
 
   return (
     <AppShell branchName={branch.name} organizationName={branch.organization.name} userName={user.displayName}>
-      <KitchenDisplayClient branchName={branch.name} stations={stations} unroutedTickets={unroutedTickets} />
+      <KitchenDisplayClient branchId={branch.id} trackingEnabled={branch.orderStatusTrackingEnabled} branchName={branch.name} stations={stations} unroutedTickets={unroutedTickets} />
     </AppShell>
   );
 }

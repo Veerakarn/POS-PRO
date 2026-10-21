@@ -115,6 +115,7 @@ model Branch {
   code              String
   timezone          String                 @default("Asia/Bangkok")
   currency          String                 @default("THB")
+  orderStatusTrackingEnabled Boolean       @default(true)
   organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tables            RestaurantTable[]
   tableSessions     TableSession[]

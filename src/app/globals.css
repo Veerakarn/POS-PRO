@@ -207,6 +207,27 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .card-arrow { color: var(--moss); font-size: 14px; font-weight: 800; }
 
 .ordering-page { min-height: 100vh; padding: 22px; background: #edf2ed; }
+.kitchen-tracking-settings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; background: white; border: 1px solid var(--line); border-radius: 14px; }
+.kitchen-tracking-settings p { margin: 6px 0; font-size: 13px; }
+.kitchen-tracking-settings small { color: var(--muted); }
+.kitchen-order-lines { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.kitchen-order-lines li > div { font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; }
+.kitchen-order-lines strong { color: var(--moss-dark); font-size: 21px; }
+.kitchen-order-lines p { margin: 3px 0; color: #895619; font-size: 13px; }
+.kitchen-order-lines small { color: var(--muted); font-size: 12px; }
+.kitchen-ticket footer .kitchen-wait-time { color: #b45413; font-size: 14px; }
+.kitchen-ticket footer button:disabled { opacity: .55; cursor: wait; }
+.customer-order-progress { max-width: 1480px; margin: 0 auto 18px; padding: 18px; background: white; border: 1px solid var(--line); border-radius: 16px; }
+.customer-order-progress h2 { margin: 0; font-size: 19px; }
+.customer-order-progress > p { color: var(--muted); font-size: 12px; }
+.customer-order-list { display: grid; gap: 12px; max-height: 280px; overflow: auto; }
+.customer-order-list article { padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.customer-order-list h3 { margin: 0 0 8px; font-size: 14px; }
+.customer-order-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.customer-order-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; font-size: 14px; }
+.customer-order-list strong { padding: 4px 8px; background: #f0f4f1; border-radius: 7px; font-size: 12px; }
+.customer-order-list .food-progress-served { color: #16623e; background: #e2f4e8; }
+.customer-order-list .food-progress-cancelled { color: #a12f2f; background: #ffeded; }
 .ordering-header { max-width: 1480px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 auto 18px; padding: 0 8px; }
 .ordering-header h1 { margin: 0; font-size: 30px; }
 .table-session-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; color: var(--moss-dark); background: #e7f6ed; border-radius: 999px; font-size: 13px; font-weight: 800; }

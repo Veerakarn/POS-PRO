@@ -43,6 +43,8 @@ function activityTitle(action: string, branchName: string | null, actorName: str
     "order_item.cancelled": "ยกเลิกรายการอาหาร",
     "table.moved": "ย้ายโต๊ะ",
     "table.merged": "รวมโต๊ะ",
+    "kitchen.order_status_updated": "อัปเดตสถานะอาหารจากครัว",
+    "kitchen.tracking_changed": "เปิด–ปิดการติดตามสถานะอาหาร",
     "table.check_bill_requested_from_counter": "เรียกเช็กบิล",
     "table.qr_reprinted_from_counter": "พิมพ์ QR โต๊ะซ้ำ",
     "ingredient.active_changed": "เปลี่ยนสถานะวัตถุดิบ",

@@ -30,6 +30,8 @@ const actionLabels: Record<string, string> = {
   "bill.split_created": "สร้างบิลแยก",
   "bill.voided": "ยกเลิกบิล",
   "order_item.cancelled": "ยกเลิกรายการอาหาร",
+  "kitchen.order_status_updated": "อัปเดตสถานะอาหารจากครัว",
+  "kitchen.tracking_changed": "เปิด–ปิดการติดตามสถานะอาหาร",
   "table.opened_from_counter": "เปิดโต๊ะ",
   "table.moved": "ย้ายโต๊ะ",
   "table.merged": "รวมโต๊ะ",
