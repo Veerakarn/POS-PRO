@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { logout } from "@/app/auth-actions";
 import { updateOwnProfile, type ProfileState } from "@/app/account/profile-actions";
 import { ChangePinForm } from "@/components/change-pin-form";
@@ -32,12 +33,16 @@ function Avatar({ name, src, large = false }: { name: string; src?: string | nul
 }
 
 function ProfileEditor({ account }: { account: Account }) {
+  const router = useRouter();
   const [state, action, pending] = useActionState<ProfileState, FormData>(updateOwnProfile, {});
   const [preview, setPreview] = useState<string | null>(null);
   const [remove, setRemove] = useState(false);
   const [fileError, setFileError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => {
+    if (state.success) router.refresh();
+  }, [router, state.success]);
   return <form action={action} className="account-profile-form">
     <fieldset disabled={pending}>
       <div className="account-photo-editor">
@@ -58,7 +63,7 @@ function ProfileEditor({ account }: { account: Account }) {
       }} />
       <input type="hidden" name="removeAvatar" value={remove ? "yes" : "no"} />
       <label className="account-field">ชื่อที่แสดง<input name="displayName" defaultValue={account.displayName} maxLength={80} required autoComplete="name" /></label>
-      <label className="account-field">อีเมล<input value={account.email} readOnly type="email" /><small>อีเมลสำหรับเข้าสู่ระบบ</small></label>
+      <label className="account-field">อีเมล<input value={account.email} readOnly type="email" /></label>
     </fieldset>
     {fileError || state.error ? <p className="form-error" role="alert">{fileError || state.error}</p> : null}
     {state.success ? <p className="account-success" role="status">{state.success}</p> : null}

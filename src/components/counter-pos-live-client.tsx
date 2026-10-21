@@ -397,7 +397,6 @@ export function CounterPosLiveClient({
               {selectedTable.totalSatang ? <CounterBillingControls branchId={branchId} canManagePayments={canManagePayments} hasOpenCashShift={hasOpenCashShift} paymentMethods={paymentMethods} table={selectedTable} tables={tables} /> : null}
             </>
           )}
-          <p className="panel-note">เลือกโต๊ะเพื่อดูออเดอร์และจัดการรายการได้ที่นี่</p>
         </aside>
       </div>
     </main>
