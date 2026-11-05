@@ -32,7 +32,7 @@ export default function HomePage() {
       <main className="home-page">
         <section className="hero">
           <div>
-            <p className="eyebrow">Restaurant operations, built to scale</p>
+            <p className="eyebrow">Restaurant operations, built to scale 1 </p>
             <h1>ทุกจังหวะของร้าน<br />อยู่ในระบบเดียว</h1>
             <p className="hero-copy">
               POS@PRO เชื่อมการสั่งอาหารจาก QR หน้าร้าน ครัว บาร์ งานพิมพ์ และข้อมูลของทุกสาขาเข้าด้วยกัน
