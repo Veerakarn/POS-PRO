@@ -1,5 +1,5 @@
 @font-face {
-  font-family: "Noto Sans Thai";
+  font-family: "Noto Sans Thai", "Noto Sans Thai Fallback", sans-serif;
   src: url("/fonts/noto-sans-thai.ttf") format("truetype");
   font-style: normal;
   font-weight: 100 900;
