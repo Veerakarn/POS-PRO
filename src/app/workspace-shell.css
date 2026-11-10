@@ -106,11 +106,15 @@
   .workspace-shell .account-trigger > svg { display: none; }
 }
 
+@media (min-width: 681px), (pointer: fine) {
+  .workspace-shell.navigation-open .sidebar-link { font-weight: 400; }
+  .workspace-shell.navigation-open .sidebar-link.active { font-weight: 600; }
+}
+
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
   .workspace-shell.navigation-open .sidebar-link {
     color: rgb(255 255 255 / 75%);
     font-size: 16px;
-    font-weight: 600;
   }
 
   .workspace-shell.navigation-open .sidebar-link.active {
