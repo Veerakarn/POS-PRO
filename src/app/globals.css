@@ -25,7 +25,7 @@
 .account-bell:hover, .account-icon-button:hover { background: #eef5f0; }
 .account-badge { position: absolute; top: 1px; right: 0; min-width: 18px; padding: 1px 4px; border: 2px solid white; border-radius: 20px; background: #e73e4c; color: white; font-size: 10px; font-weight: 800; line-height: 14px; }
 .account-control-divider { width: 1px; height: 26px; background: var(--line); }
-.account-trigger { cursor: pointer; font-family: inherit; }
+.account-trigger { cursor: pointer; font-family: "Noto Sans Thai"; }
 .account-trigger-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 32px; height: 32px; overflow: hidden; border-radius: 50%; background: #d9eee3; color: #1f6a4e; font-weight: 800; text-transform: uppercase; }
 .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -137,11 +137,11 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--canvas);
-  font-family: "Noto Sans Thai", Tahoma, sans-serif;
+  font-family: "Noto Sans Thai";
 }
 
 button, input, select { font: inherit; }
-textarea { font-family: inherit; }
+textarea { font-family: "Noto Sans Thai"; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 
