@@ -1,21 +1,10 @@
 /* Shared navigation for every staff workspace, independent of its page content. */
-@font-face {
-  font-family: "Noto Sans Thai Sidebar";
-  src: url("/fonts/noto-sans-thai.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 .app-shell.workspace-shell {
   display: block;
   min-height: 100dvh;
   background: #f3f7f4;
 }
-.workspace-shell .app-sidebar {
-  display: none;
-  font-family: "Noto Sans Thai Sidebar", Noto Sans Thai Sidebar, Noto Sans Thai Sidebar;
-}
+.workspace-shell .app-sidebar { display: none; }
 .workspace-shell .workspace-menu-backdrop { display: none; }
 .workspace-shell .topbar {
   position: sticky;
@@ -108,7 +97,7 @@
 
 @media (min-width: 681px), (pointer: fine) {
   .workspace-shell.navigation-open .sidebar-link { font-weight: 400; }
-  .workspace-shell.navigation-open .sidebar-link.active { font-weight: 600; }
+  .workspace-shell.navigation-open .sidebar-link.active { font-weight: 500; }
 }
 
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
