@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Noto Sans Thai";
+  src: url("/fonts/noto-sans-thai.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   --ink: #17211d;
   --muted: #6b766f;
@@ -129,10 +137,11 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--canvas);
-  font-family: Arial, "Noto Sans Thai", Tahoma, sans-serif;
+  font-family: "Noto Sans Thai", Tahoma, sans-serif;
 }
 
 button, input, select { font: inherit; }
+textarea { font-family: inherit; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 
@@ -468,7 +477,7 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .job-status.claimed { color: #285c79; background: #dcecf4; }
 .printer-error, .job-error { color: var(--danger); }
 .printer-error { margin: 13px 0 0; padding: 9px 10px; background: #fff2ef; border-radius: 8px; font-size: 11px; overflow-wrap: anywhere; }
-.printer-endpoint { margin: 15px 0 5px; font-family: Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.printer-endpoint { margin: 15px 0 5px; font-size: 12px; overflow-wrap: anywhere; }
 .printer-agent-name { margin: 0; color: var(--muted); font-size: 11px; }
 .printer-card details { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .printer-card summary { color: var(--moss); cursor: pointer; font-size: 11px; font-weight: 800; }
@@ -485,7 +494,7 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .printer-feedback .form-error, .printer-feedback .form-success { margin: 0; font-size: 11px; }
 .agent-token { display: grid; gap: 7px; padding: 12px; color: #5d4512; background: #fff4ce; border: 1px solid #ecd994; border-radius: 9px; }
 .agent-token strong, .agent-token small { font-size: 10px; line-height: 1.5; }
-.agent-token textarea { min-height: 76px; resize: vertical; font-family: Consolas, monospace; font-size: 10px; }
+.agent-token textarea { min-height: 76px; resize: vertical; font-size: 10px; }
 .printer-route-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 16px; background: white; border: 1px solid var(--line); border-radius: 12px; }
 .table-management-item.is-inactive { background: #f8faf8; border-style: dashed; }
 .table-management-item.is-inactive strong { color: var(--muted); }
@@ -776,7 +785,7 @@ h2 { margin-bottom: 0; font-size: 24px; letter-spacing: -0.035em; }
 .bill-member-info span { color: var(--muted); }
 .tax-invoice-form { margin-top: 12px; }
 .tax-invoice-link a { color: var(--moss); font-weight: 750; }
-.tax-invoice-paper { width: min(210mm, calc(100% - 32px)); min-height: 285mm; margin: 24px auto; padding: 18mm; color: #1a241d; background: white; border: 1px solid #dce4dd; box-shadow: 0 10px 35px #102e1a16; font-family: Arial, sans-serif; }
+.tax-invoice-paper { width: min(210mm, calc(100% - 32px)); min-height: 285mm; margin: 24px auto; padding: 18mm; color: #1a241d; background: white; border: 1px solid #dce4dd; box-shadow: 0 10px 35px #102e1a16; }
 .invoice-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
 .invoice-toolbar a { color: var(--moss); }
 .tax-document-heading { text-align: center; padding-bottom: 18px; border-bottom: 1px solid #87958b; }
