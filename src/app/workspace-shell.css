@@ -108,7 +108,12 @@
 
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
   .workspace-shell.navigation-open .sidebar-link {
+    color: #b0d7c8;
     font-size: 16px;
     font-weight: 600;
+  }
+
+  .workspace-shell.navigation-open .sidebar-link.active {
+    color: #03251c;
   }
 }
