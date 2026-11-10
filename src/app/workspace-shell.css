@@ -61,7 +61,7 @@
 .workspace-shell.navigation-open .sidebar-group-label { margin: 0 12px 8px; color: #b0d7c8; font-size: 10px; letter-spacing: .03em; }
 .workspace-shell.navigation-open .sidebar-link { min-height: 44px; padding: 9px 12px; gap: 6px; font-size: 14px; border-radius: 7px; color: #e6f3eb; }
 .workspace-shell.navigation-open .sidebar-link-mark, .workspace-shell.navigation-open .sidebar-chevron { display: none; }
-.workspace-shell.navigation-open .sidebar-link.active { background: #469c7c; border-color: transparent; box-shadow: inset 3px 0 #a6dcc4; }
+.workspace-shell.navigation-open .sidebar-link.active { background: #469c7c; border-color: transparent; box-shadow: inset 3px 0 #a6dcc4; font-weight: 700; }
 .workspace-shell.navigation-open .sidebar-footer { display: none; }
 
 /* Desktop windows keep navigation pinned; touch screens retain the iPad menu. */
@@ -97,7 +97,6 @@
 
 @media (min-width: 681px), (pointer: fine) {
   .workspace-shell.navigation-open .sidebar-link { font-weight: 400; }
-  .workspace-shell.navigation-open .sidebar-link.active { font-weight: 500; }
 }
 
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
