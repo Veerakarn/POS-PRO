@@ -109,5 +109,6 @@
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
   .workspace-shell.navigation-open .sidebar-link {
     font-size: 16px;
+    font-weight: 600;
   }
 }
