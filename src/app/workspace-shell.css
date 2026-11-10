@@ -99,6 +99,10 @@
   .workspace-shell.navigation-open .sidebar-link { font-weight: 400; }
 }
 
+@media (pointer: fine) {
+  .workspace-shell.navigation-open .sidebar-link.active { font-weight: 500; }
+}
+
 @media (min-width: 681px) and (max-width: 1366px) and (pointer: coarse) {
   .workspace-shell.navigation-open .sidebar-link {
     color: rgb(255 255 255 / 75%);
